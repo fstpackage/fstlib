@@ -77,22 +77,22 @@ TEST_F(ScaleTest, BigVec)
 }
 
 
-TEST_F(ScaleTest, BigVecFromR)
-{
-  FstStore fstStore(GetFilePath("big.fst"));
-
-  auto tableReader = new FstTable();
-  auto selectedCols = new StringArray();
-  auto columnFactory = new ColumnFactory();
-  std::vector<int> keyIndex;
-
-  // Read fst file
-  try
-  {
-    fstStore.fstRead(*tableReader, nullptr, 1, -1, columnFactory, keyIndex, selectedCols);
-  }
-  catch (const std::runtime_error&)
-  {
-    throw(runtime_error("Error"));
-  }
-}
+//TEST_F(ScaleTest, BigVecFromR)
+//{
+//  FstStore fstStore(GetFilePath("big.fst"));
+//
+//  auto tableReader = new FstTable();
+//  auto selectedCols = new StringArray();
+//  auto columnFactory = new ColumnFactory();
+//  std::vector<int> keyIndex;
+//
+//  // Read fst file
+//  try
+//  {
+//    fstStore.fstRead(*tableReader, nullptr, 1, -1, columnFactory, keyIndex, selectedCols);
+//  }
+//  catch (const std::runtime_error&)
+//  {
+//    throw(runtime_error("Error"));
+//  }
+//}

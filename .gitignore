@@ -35,3 +35,11 @@ vs/fstcoretest/Debug
 vs/fstcoretest/x64
 vs/Gtest/x64
 vs/x64
+*.lib
+*.ipch
+*.db-shm
+*.db-wal
+*.exe
+*.ilk
+*.opendb
+*.testdurations
