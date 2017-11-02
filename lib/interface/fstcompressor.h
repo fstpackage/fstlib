@@ -75,6 +75,11 @@ public:
 		compressor = nullptr;  // only use this class for decompression (not checked!)
 	}
 
+  ~FstCompressor()
+  {
+    delete compressor;
+  }
+
 	FstCompressor(COMPRESSION_ALGORITHM compAlgorithm, unsigned int compressionLevel, ITypeFactory* typeFactory)
 	{
 		this->typeFactory = typeFactory;
@@ -115,7 +120,7 @@ public:
 		// Check for empty source
 		if (blobLength == 0)
 		{
-			throw(std::runtime_error("Source contains no data."));
+			throw(std::runtime_error(FSTERROR_COMP_NO_DATA));
 		}
 
 
@@ -139,11 +144,11 @@ public:
 		unsigned long long* compSizes = new unsigned long long[nrOfBlocks + 1];
 		unsigned long long* compBatchSizes = new unsigned long long[nrOfThreads];
 
-		unsigned int* blockHashes = nullptr;
+		unsigned long long* blockHashes = nullptr;
 
 		if (hash)
 		{
-			blockHashes = new unsigned int[nrOfBlocks];
+			blockHashes = new unsigned long long[nrOfBlocks];
 		}
 
 		// We need nrOfBlocks buffers
@@ -173,7 +178,7 @@ public:
 					// Hash compression result
 					if(hash)
 					{
-						blockHashes[block] = XXH32(threadBuf + bufPos, compSize, FST_HASH_SEED);
+						blockHashes[block] = XXH64(threadBuf + bufPos, compSize, FST_HASH_SEED);
 					}
 
 					bufPos += compSize;
@@ -201,7 +206,7 @@ public:
 					// Hash compression result
 					if (hash)
 					{
-						blockHashes[block] = XXH32(threadBuf + bufPos, compSize, FST_HASH_SEED);
+						blockHashes[block] = XXH64(threadBuf + bufPos, compSize, FST_HASH_SEED);
 					}
 
 					bufPos += compSize;
@@ -218,7 +223,7 @@ public:
 				// Hash compression result
 				if (hash)
 				{
-					blockHashes[nextblockNr] = XXH32(threadBuf + bufPos, compSize, FST_HASH_SEED);
+					blockHashes[nextblockNr] = XXH64(threadBuf + bufPos, compSize, FST_HASH_SEED);
 				}
 
 			}
@@ -226,11 +231,11 @@ public:
 		}  // end parallel region and join all threads
 
 
-		unsigned int allBlockHash = 0;
+		unsigned long long allBlockHash = 0;
 
 		if (hash)
 		{
-			allBlockHash = XXH32(blockHashes, nrOfBlocks * 4, FST_HASH_SEED);
+			allBlockHash = XXH64(blockHashes, nrOfBlocks * 8, FST_HASH_SEED);
 			delete[] blockHashes;
 		}
 
@@ -242,30 +247,27 @@ public:
 
 		// In memory compression format:
 		// Size                 | Type               | Description
-		// 8                    | unsigned long long | fst marker
 		// 4                    | insigned int       | header hash
 		// 4                    | unsigned int       | blockSize
 		// 4                    | unsigned int       | version
 		// 4                    | unsigned int       | COMPRESSION_ALGORITHM and upper bit isHashed
 		// 8                    | unsigned long long | vecLength
-		// 4                    | unsigned int       | block hash result
+		// 8                    | unsigned long long | block hash result
 		// 8 * (nrOfBlocks + 1) | unsigned long long | block offset
 		//                      | unsigned char      | compressed data
 
-		unsigned long long headerSize = 4 + 8 * (nrOfBlocks + 5);
+		unsigned long long headerSize = 8 * (nrOfBlocks + 5);
 		IBlobContainer* blobContainer = typeFactory->CreateBlobContainer(headerSize + totCompSize);
 		unsigned char* blobData = blobContainer->Data();
 
-		unsigned long long* fstMarker = reinterpret_cast<unsigned long long*>(blobData);
-		unsigned int* headerHash = reinterpret_cast<unsigned int*>(blobData + 8);
-		unsigned int* pBlockSize = reinterpret_cast<unsigned int*>(blobData + 12);
-		unsigned int* version = reinterpret_cast<unsigned int*>(blobData + 16);
-		unsigned int* algo = reinterpret_cast<unsigned int*>(blobData + 20);
-		unsigned long long* vecLength = reinterpret_cast<unsigned long long*>(blobData + 24);
-		unsigned int* hashResult = reinterpret_cast<unsigned int*>(blobData + 32);
-		unsigned long long* blockOffsets = reinterpret_cast<unsigned long long*>(blobData + 36);
+		unsigned int* headerHash = reinterpret_cast<unsigned int*>(blobData);
+		unsigned int* pBlockSize = reinterpret_cast<unsigned int*>(blobData + 4);
+		unsigned int* version = reinterpret_cast<unsigned int*>(blobData + 8);
+		unsigned int* algo = reinterpret_cast<unsigned int*>(blobData + 12);
+		unsigned long long* vecLength = reinterpret_cast<unsigned long long*>(blobData + 16);
+		unsigned long long* hashResult = reinterpret_cast<unsigned long long*>(blobData + 24);
+		unsigned long long* blockOffsets = reinterpret_cast<unsigned long long*>(blobData + 32);
 
-		*fstMarker = FST_FILE_ID;
 		*pBlockSize = blockSize;
 		*version = 1;
 		*algo = compressionAlgo | ((1 << 31) * hash);  // upper bit signals isHashed
@@ -305,22 +307,11 @@ public:
 
 		delete[] compSizes;
 
-		*headerHash = XXH32(&blobData[12], headerSize - 12, FST_HASH_SEED);  // header hash
+		*headerHash = XXH32(&blobData[4], headerSize - 4, FST_HASH_SEED);  // header hash
 
 		return blobContainer;
 	}
 
-	// In memory compression format:
-	// Size                 | Type               | Description
-	// 8                    | unsigned long long | fst marker
-	// 4                    | insigned int       | header hash
-	// 4                    | unsigned int       | blockSize
-	// 4                    | unsigned int       | version
-	// 4                    | unsigned int       | COMPRESSION_ALGORITHM and upper bit isHashed
-	// 8                    | unsigned long long | vecLength
-	// 4                    | unsigned int       | block hash result
-	// 8 * (nrOfBlocks + 1) | unsigned long long | block offset
-	//                      | unsigned char      | compressed data
 
 	IBlobContainer* DecompressBlob(unsigned char* blobSource, unsigned long long blobLength, bool checkHashes = true) const
 	{
@@ -330,45 +321,49 @@ public:
 		// Minimum length of compressed data format
 		if (blobLength < 45)
 		{
-			throw(std::runtime_error("Data format not recognised as compressed fst format, compressed size is too small."));
+			throw(std::runtime_error(FSTERROR_COMP_SIZE));
 		}
 
-		// Meta data of compressed blocks
+    // In memory compression format:
+    // Size                 | Type               | Description
+    // 4                    | insigned int       | header hash
+    // 4                    | unsigned int       | blockSize
+    // 4                    | unsigned int       | version
+    // 4                    | unsigned int       | COMPRESSION_ALGORITHM and upper bit isHashed
+    // 8                    | unsigned long long | vecLength
+    // 8                    | unsigned long long | block hash result
+    // 8 * (nrOfBlocks + 1) | unsigned long long | block offset
+    //                      | unsigned char      | compressed data
+    
+	  // Meta data of compressed blocks
 
-		unsigned long long* fstMarker = reinterpret_cast<unsigned long long*>(blobSource);
-		unsigned int* headerHash = reinterpret_cast<unsigned int*>(blobSource + 8);
-		unsigned int* blockSize = reinterpret_cast<unsigned int*>(blobSource + 12);
-		//unsigned int* version = reinterpret_cast<unsigned int*>(blobSource + 16);
-		unsigned int* algo = reinterpret_cast<unsigned int*>(blobSource + 20);
-		unsigned long long* vecLength = reinterpret_cast<unsigned long long*>(blobSource + 24);
-		unsigned int* hashResult = reinterpret_cast<unsigned int*>(blobSource + 32);
-		unsigned long long* blockOffsets = reinterpret_cast<unsigned long long*>(blobSource + 36);
+		unsigned int* headerHash         = reinterpret_cast<unsigned int*>(blobSource);
+		unsigned int* blockSize          = reinterpret_cast<unsigned int*>(blobSource + 4);
+		//unsigned int* version            = reinterpret_cast<unsigned int*>(blobSource + 8);
+		unsigned int* algo               = reinterpret_cast<unsigned int*>(blobSource + 12);
+		unsigned long long* vecLength    = reinterpret_cast<unsigned long long*>(blobSource + 16);
+    unsigned long long* hashResult   = reinterpret_cast<unsigned long long*>(blobSource + 24);
+		unsigned long long* blockOffsets = reinterpret_cast<unsigned long long*>(blobSource + 32);
 
-		bool hash = checkHashes && static_cast<bool>(((*algo) >> 31) & 1);
-		unsigned int algorithm = (*algo) & 0x7fffffff;  // highest bit signals hash
-
-		// Check fst magic marker
-		if (*fstMarker != FST_FILE_ID)
-		{
-			throw(std::runtime_error("Data format is not recognised as compressed fst format."));
-		}
+		bool hash                        = checkHashes && static_cast<bool>(((*algo) >> 31) & 1);
+		unsigned int algorithm           = (*algo) & 0x7fffffff;  // highest bit signals hash
 
 		// Calculate number of blocks
 		int nrOfBlocks = static_cast<int>(1 + (*vecLength - 1) / *blockSize);  // including (partial) last
 
-		unsigned long long headerSize = 4 + 8 * (static_cast<unsigned long long>(nrOfBlocks) + 5);
+		unsigned long long headerSize = 8 * (static_cast<unsigned long long>(nrOfBlocks) + 5);
 
 		// Minimum length of compressed data format including block offset header information
 		if (blobLength <= headerSize)
 		{
-			throw(std::runtime_error("Compressed data vector has incorrect size."));
+			throw(std::runtime_error(FSTERROR_COMP_SIZE));  // TODO: error in fstdefines.h
 		}
 
-		unsigned int headHash = XXH32(&blobSource[12], headerSize - 12, FST_HASH_SEED);  // header hash
+		unsigned int headHash = XXH32(&blobSource[4], headerSize - 4, FST_HASH_SEED);  // header hash
 
 		if (*headerHash != headHash)
 		{
-			throw(std::runtime_error("Incorrect header information found in raw vector."));
+			throw(std::runtime_error(FSTERROR_COMP_HEADER));
 		}
 
 
@@ -382,7 +377,7 @@ public:
 		if (blockOffsets[nrOfBlocks] != blobLength)
 		{
 			delete blobContainer;
-			throw(std::runtime_error("Compressed data vector has incorrect size."));
+			throw(std::runtime_error(FSTERROR_COMP_SIZE));
 		}
 
 		// Determine required number of threads
@@ -395,7 +390,7 @@ public:
 
 		if (hash)
 		{
-			unsigned int* blockHashes = new unsigned int[nrOfBlocks];
+			unsigned long long* blockHashes = new unsigned long long[nrOfBlocks];
 
 #pragma omp parallel num_threads(nrOfThreads)
 			{
@@ -411,7 +406,7 @@ public:
 						unsigned long long blockStart = blockOffsets[block];
 						unsigned long long blockEnd = blockOffsets[block + 1];
 
-						blockHashes[block] = XXH32(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
+						blockHashes[block] = XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
 					}
 				}
 
@@ -426,24 +421,24 @@ public:
 						unsigned long long blockStart = blockOffsets[block];
 						unsigned long long blockEnd = blockOffsets[block + 1];
 
-						blockHashes[block] = XXH32(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
+						blockHashes[block] = XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
 					}
 
 					// last block
 					unsigned long long blockStart = blockOffsets[toBlock - 1];
 					unsigned long long blockEnd = blockOffsets[toBlock];
 
-					blockHashes[toBlock - 1] = XXH32(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
+					blockHashes[toBlock - 1] = XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
 				}
 			}
 
-			unsigned int totHashes = XXH32(blockHashes, 4 * nrOfBlocks, FST_HASH_SEED);
+			unsigned long long totHashes = XXH64(blockHashes, 8 * nrOfBlocks, FST_HASH_SEED);
 			delete[] blockHashes;
 
 			if (totHashes != *hashResult)
 			{
 				delete blobContainer;
-				throw(std::runtime_error("Incorrect input vector: data block hash does not match."));
+				throw(std::runtime_error(FSTERROR_COMP_DATA_HASH));
 			}
 		}
 
@@ -508,7 +503,7 @@ public:
 		if (error)
 		{
 			delete blobContainer;
-			throw(std::runtime_error("An error was detected in the compressed data stream."));
+			throw(std::runtime_error(FSTERROR_COMP_STREAM));
 		}
 
 		return blobContainer;

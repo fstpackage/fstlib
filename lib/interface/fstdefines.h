@@ -43,10 +43,10 @@
 
 // Format related defines
 #define FST_VERSION          1                  // version of fst codebase
-#define TABLE_META_SIZE      44                 // size of table meta-data block
+#define TABLE_META_SIZE      48                 // size of table meta-data block
 #define FST_FILE_ID          0xa91c12f8b245a71d // identifies a fst file or memory block
 #define FST_HASH_SEED        912824571          // default seed used for xxhash algorithm
-#define CHUNKSET_HEADER_SIZE 76                 // size of chunkset header
+#define CHUNKSET_HEADER_SIZE 80                 // size of chunkset header
 #define CHUNK_INDEX_SIZE     96                 // size of chunk index header
 #define DATA_INDEX_SIZE      24                 // size of data index header
 #define CHAR_HEADER_SIZE     8                  // meta data header size
@@ -97,6 +97,11 @@
 #define FSTERROR_ERROR_OPEN_WRITE    "There was an error creating the file, please check path"
 #define FSTERROR_ERROR_OPEN_READ     "There was an error opening the file, it seems to be incomplete or damaged."
 #define FSTERROR_UPDATE_FST          "Incompatible fst file: file was created by a newer version of fst"
+#define FSTERROR_COMP_DATA_HASH      "Incorrect input vector: data block hash does not match."
+#define FSTERROR_COMP_STREAM         "An error was detected in the compressed data stream."
+#define FSTERROR_COMP_SIZE           "Compressed data vector has incorrect size."
+#define FSTERROR_COMP_HEADER         "Incorrect header information found in raw vector."
+#define FSTERROR_COMP_NO_DATA        "Source contains no data."
 
 #define FST_NA_INT					         0x80000000
 
