@@ -92,6 +92,7 @@ void CompDecompCycle(unsigned char* testData, unsigned long long length, COMPRES
 	// with checking missing hashes
 	resultContainer = static_cast<BlobContainer*>(compressor.DecompressBlob(blob->Data(), blobContainer->Size(), true));
 	resBlob = resultContainer->DataPtr();
+
 	//CompareBytes(resBlob->Data(), testData, length);
 	res = std::memcmp(testData, resBlob->Data(), resultContainer->Size());
 	EXPECT_EQ(res, 0);

@@ -343,7 +343,6 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
 
   if (nrOfRows == 0)
   {
-    //delete[] metaDataWriteBlock;
     throw(runtime_error(FSTERROR_NO_DATA));
   }
 
@@ -356,7 +355,6 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
 
   if (myfile.fail())
   {
-    //delete[] metaDataWriteBlock;
     myfile.close();
     throw(runtime_error(FSTERROR_ERROR_OPEN_WRITE));
   }
@@ -365,10 +363,11 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
   myfile.write(metaDataWriteBlock, metaDataSize);  // table meta data
 
   // Serialize column names
-  IStringWriter* blockRunner = fstTable.GetColNameWriter();
-  fdsWriteCharVec_v6(myfile, blockRunner, 0, StringEncoding::NATIVE);   // column names
-  delete blockRunner;
-
+  {
+    std::unique_ptr<IStringWriter> blockRunnerP(fstTable.GetColNameWriter());
+    IStringWriter* blockRunner = blockRunnerP.get();
+    fdsWriteCharVec_v6(myfile, blockRunner, 0, StringEncoding::NATIVE);   // column names
+  }
 
   // Size of chunkset index header plus data chunk header
   unsigned long long chunkIndexSize     = CHUNK_INDEX_SIZE + DATA_INDEX_SIZE + 8 * nrOfCols;
@@ -422,9 +421,10 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
   	FstColumnAttribute colAttribute;
   	std::string annotation = "";
     short int scale = 0;
+    bool hasAnnotation;
 
   	// get type and add annotation
-    FstColumnType colType = fstTable.ColumnType(colNr, colAttribute, scale, annotation);
+    FstColumnType colType = fstTable.ColumnType(colNr, colAttribute, scale, annotation, hasAnnotation);
 
     colBaseTypes[colNr] = static_cast<unsigned short int>(colType);
   	colAttributeTypes[colNr] = static_cast<unsigned short int>(colAttribute);
@@ -435,9 +435,9 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
       case FstColumnType::CHARACTER:
       {
         colTypes[colNr] = 6;
-     		IStringWriter* stringWriter = fstTable.GetStringWriter(colNr);
+        std::unique_ptr<IStringWriter> stringWriterP(fstTable.GetStringWriter(colNr));
+     		IStringWriter* stringWriter = stringWriterP.get();  // TODO: keep writer as part of fstTable (don't create)
         fdsWriteCharVec_v6(myfile, stringWriter, compress, stringWriter->Encoding());   // column names
-     		delete stringWriter;
         break;
       }
 
@@ -445,9 +445,10 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
       {
         colTypes[colNr] = 7;
         int* intP = fstTable.GetIntWriter(colNr);  // level values pointer
-     		IStringWriter* stringWriter = fstTable.GetLevelWriter(colNr);
-        fdsWriteFactorVec_v7(myfile, intP, stringWriter, nrOfRows, compress, stringWriter->Encoding(), annotation);
-	      delete stringWriter;
+
+        std::unique_ptr<IStringWriter> stringWriterP(fstTable.GetLevelWriter(colNr));
+     		IStringWriter* stringWriter = stringWriterP.get();
+        fdsWriteFactorVec_v7(myfile, intP, stringWriter, nrOfRows, compress, stringWriter->Encoding(), annotation, hasAnnotation);
         break;
       }
 
@@ -455,7 +456,7 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
       {
         colTypes[colNr] = 8;
         int* intP = fstTable.GetIntWriter(colNr);
-        fdsWriteIntVec_v8(myfile, intP, nrOfRows, compress, annotation);
+        fdsWriteIntVec_v8(myfile, intP, nrOfRows, compress, annotation, hasAnnotation);
         break;
       }
 
@@ -463,7 +464,7 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
       {
         colTypes[colNr] = 9;
         double* doubleP = fstTable.GetDoubleWriter(colNr);
-        fdsWriteRealVec_v9(myfile, doubleP, nrOfRows, compress, annotation);
+        fdsWriteRealVec_v9(myfile, doubleP, nrOfRows, compress, annotation, hasAnnotation);
         break;
       }
 
@@ -471,7 +472,7 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
       {
         colTypes[colNr] = 10;
         int* intP = fstTable.GetLogicalWriter(colNr);
-        fdsWriteLogicalVec_v10(myfile, intP, nrOfRows, compress, annotation);
+        fdsWriteLogicalVec_v10(myfile, intP, nrOfRows, compress, annotation, hasAnnotation);
         break;
       }
 
@@ -479,7 +480,7 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
       {
         colTypes[colNr] = 11;
         long long* intP = fstTable.GetInt64Writer(colNr);
-        fdsWriteInt64Vec_v11(myfile, intP, nrOfRows, compress, annotation);
+        fdsWriteInt64Vec_v11(myfile, intP, nrOfRows, compress, annotation, hasAnnotation);
         break;
       }
 
@@ -487,13 +488,11 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
 	  {
 		  colTypes[colNr] = 12;
 		  char* byteP = fstTable.GetByteWriter(colNr);
-		  fdsWriteByteVec_v12(myfile, byteP, nrOfRows, compress, annotation);
+		  fdsWriteByteVec_v12(myfile, byteP, nrOfRows, compress, annotation, hasAnnotation);
 		  break;
 	  }
 
     default:
-        //delete[] metaDataWriteBlock;
-        //delete[] chunkIndex;
         myfile.close();
         throw(runtime_error("Unknown type found in column."));
     }
@@ -513,10 +512,6 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
 
   myfile.seekp(*p_chunkPos - CHUNK_INDEX_SIZE);
   myfile.write(chunkIndex, chunkIndexSize);  // vertical chunkset index and positiondata
-
-  // cleanup
-  //delete[] metaDataWriteBlock;
-  //delete[] chunkIndex;
 
   // Check file status only here for performance.
   // Any error that was generated earlier will result in a fail here.
@@ -544,7 +539,7 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
   }
 
   // Read variables from fst file header and check header hash
-  ReadHeader(myfile, keyLength, nrOfCols);
+  tableVersionMax = ReadHeader(myfile, keyLength, nrOfCols);
 
   unsigned long long keyIndexHeaderSize = 0;
 
@@ -559,7 +554,9 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
   unsigned long long metaSize = keyIndexHeaderSize + chunksetHeaderSize + colNamesHeaderSize;
 
   // Read format headers
-  metaDataBlock = new char[metaSize];
+  metaDataBlockP = std::unique_ptr<char[]>(new char[metaSize]);
+  metaDataBlock = metaDataBlockP.get();
+
   myfile.read(metaDataBlock, metaSize);
 
   if (keyLength != 0)
@@ -571,8 +568,6 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
 
     if (*p_keyIndexHash != hHash)
     {
-      delete[] metaDataBlock;
-      metaDataBlock = nullptr;
       myfile.close();
       throw(runtime_error(FSTERROR_DAMAGED_HEADER));
     }
@@ -601,8 +596,6 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
   unsigned long long chunksetHash = XXH64(&metaDataBlock[keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
   if (*p_chunksetHash != chunksetHash)
   {
-    delete[] metaDataBlock;
-    metaDataBlock = nullptr;
     myfile.close();
     throw(runtime_error(FSTERROR_DAMAGED_HEADER));
   }
@@ -619,8 +612,6 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
 
   if (*p_colNamesHash != colNamesHash)
   {
-    delete[] metaDataBlock;
-    metaDataBlock = nullptr;
     myfile.close();
     throw(runtime_error(FSTERROR_DAMAGED_HEADER));
   }
@@ -628,10 +619,10 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
   // Read column names
   unsigned long long colNamesOffset = metaSize + TABLE_META_SIZE;
 
-  blockReader = columnFactory->CreateStringColumn(nrOfCols, FstColumnAttribute::NONE);
-  fdsReadCharVec_v6(myfile, blockReader, colNamesOffset, 0, static_cast<unsigned int>(nrOfCols), static_cast<unsigned int>(nrOfCols));
+  blockReaderP = std::unique_ptr<IStringColumn>(columnFactory->CreateStringColumn(nrOfCols, FstColumnAttribute::NONE));
+  blockReader = blockReaderP.get();
 
-  // don't free metaDataBlock, used later (TODO: fix that because prone to error)
+  fdsReadCharVec_v6(myfile, blockReader, colNamesOffset, 0, static_cast<unsigned int>(nrOfCols), static_cast<unsigned int>(nrOfCols));
 
   // cleanup
   myfile.close();
@@ -652,7 +643,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   }
 
   int keyLength;
-  ReadHeader(myfile, keyLength, nrOfCols);
+  tableVersionMax = ReadHeader(myfile, keyLength, nrOfCols);
 
   unsigned long long keyIndexHeaderSize = 0;
 
@@ -667,7 +658,9 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   unsigned long long metaSize = keyIndexHeaderSize + chunksetHeaderSize + colNamesHeaderSize;
 
   // Read format headers
-  metaDataBlock = new char[metaSize];
+  metaDataBlockP = std::unique_ptr<char[]>(new char[metaSize]);
+  metaDataBlock = metaDataBlockP.get();
+
   myfile.read(metaDataBlock, metaSize);
 
   int* keyColPos = reinterpret_cast<int*>(&metaDataBlock[8]);  // TODO: why not unsigned ?
@@ -679,8 +672,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
 
     if (*p_keyIndexHash != hHash)
     {
-      delete[] metaDataBlock;
-      metaDataBlock = nullptr;
       myfile.close();
       throw(runtime_error(FSTERROR_DAMAGED_HEADER));
     }
@@ -711,8 +702,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   unsigned long long chunksetHash = XXH64(&metaDataBlock[keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
   if (*p_chunksetHash != chunksetHash)
   {
-    delete[] metaDataBlock;
-    metaDataBlock = nullptr;
     myfile.close();
     throw(runtime_error(FSTERROR_DAMAGED_HEADER));
   }
@@ -728,8 +717,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   unsigned long long colNamesHash = XXH64(&metaDataBlock[offset + 8], colNamesHeaderSize - 8, FST_HASH_SEED);
   if (*p_colNamesHash != colNamesHash)
   {
-    delete[] metaDataBlock;
-    metaDataBlock = nullptr;
     myfile.close();
     throw(runtime_error(FSTERROR_DAMAGED_HEADER));
   }
@@ -737,7 +724,10 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   // Column names
 
   unsigned long long colNamesOffset = metaSize + TABLE_META_SIZE;
-  blockReader = columnFactory->CreateStringColumn(nrOfCols, FstColumnAttribute::NONE);
+
+  blockReaderP = std::unique_ptr<IStringColumn>(columnFactory->CreateStringColumn(nrOfCols, FstColumnAttribute::NONE));
+  blockReader = blockReaderP.get();
+
   fdsReadCharVec_v6(myfile, blockReader, colNamesOffset, 0, static_cast<unsigned int>(nrOfCols), static_cast<unsigned int>(nrOfCols));
 
   // Size of chunkset index header plus data chunk header
@@ -773,11 +763,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
 
   if (*p_chunkIndexHash != chunkIndexHash)
   {
-    delete[] metaDataBlock;
-    metaDataBlock = nullptr;
-    //delete[] chunkIndex;
-    delete blockReader;
-    blockReader = nullptr;
     myfile.close();
     throw(runtime_error(FSTERROR_DAMAGED_CHUNKINDEX));
   }
@@ -786,11 +771,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
 
   if (*p_chunkDataHash != chunkDataHash)
   {
-    delete[] metaDataBlock;
-    metaDataBlock = nullptr;
-    //delete[] chunkIndex;
-    delete blockReader;
-    blockReader = nullptr;
     myfile.close();
     throw(runtime_error(FSTERROR_DAMAGED_CHUNKINDEX));
   }
@@ -801,12 +781,15 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
 
 
   // Determine column selection
-  int *colIndex;
+  std::unique_ptr<int[]> colIndexP;
+  int *colIndex = nullptr;
+
   int nrOfSelect;
 
   if (columnSelection == nullptr)
   {
-    colIndex = new int[nrOfCols];
+    colIndexP = std::unique_ptr<int[]>(new int[nrOfCols]);
+    colIndex = colIndexP.get();
 
     for (int colNr = 0; colNr < nrOfCols; ++colNr)
     {
@@ -817,7 +800,10 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   else  // determine column numbers of column names
   {
     nrOfSelect = columnSelection->Length();
-    colIndex = new int[nrOfSelect];
+
+    colIndexP = std::unique_ptr<int[]>(new int[nrOfSelect]);
+    colIndex = colIndexP.get();
+
     for (int colSel = 0; colSel < nrOfSelect; ++colSel)
     {
       int equal = -1;
@@ -835,12 +821,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
 
       if (equal == -1)
       {
-        delete[] metaDataBlock;
-        metaDataBlock = nullptr;
-        delete[] colIndex;
-        //delete[] chunkIndex;
-        delete blockReader;
-        blockReader = nullptr;
         myfile.close();
         throw(runtime_error("Selected column not found."));
       }
@@ -856,12 +836,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
 
   if (firstRow >= static_cast<long long>(nrOfRows) || firstRow < 0)
   {
-    delete[] metaDataBlock;
-    metaDataBlock = nullptr;
-    delete[] colIndex;
-    //delete[] chunkIndex;
-    delete blockReader;
-    blockReader = nullptr;
     myfile.close();
 
     if (firstRow < 0)
@@ -880,12 +854,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   {
     if (static_cast<long long>(endRow) <= firstRow)
     {
-      delete[] metaDataBlock;
-      metaDataBlock = nullptr;
-      delete[] colIndex;
-      //delete[] chunkIndex;
-      delete blockReader;
-      blockReader = nullptr;
       myfile.close();
       throw(runtime_error("Incorrect row range specified."));
     }
@@ -901,12 +869,6 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
 
     if (colNr < 0 || colNr >= nrOfCols)
     {
-      delete[] metaDataBlock;
-      metaDataBlock = nullptr;
-      delete[] colIndex;
-      //delete[] chunkIndex;
-      delete blockReader;
-      blockReader = nullptr;
       myfile.close();
       throw(runtime_error("Column selection is out of range."));
     }
@@ -919,88 +881,98 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
     // Character vector
       case 6:
       {
-        IStringColumn* stringColumn = columnFactory->CreateStringColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]));
+        std::unique_ptr<IStringColumn> stringColumnP(columnFactory->CreateStringColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
+        IStringColumn* stringColumn = stringColumnP.get();
         fdsReadCharVec_v6(myfile, stringColumn, pos, firstRow, length, nrOfRows);
         tableReader.SetStringColumn(stringColumn, colSel);
-        delete stringColumn;
         break;
       }
 
       // Integer vector
       case 8:
       {
-        IIntegerColumn* integerColumn = columnFactory->CreateIntegerColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale);
+        std::unique_ptr<IIntegerColumn> integerColumnP(columnFactory->CreateIntegerColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale));
+        IIntegerColumn* integerColumn = integerColumnP.get();
+
         std::string annotation = "";
-        fdsReadIntVec_v8(myfile, integerColumn->Data(), pos, firstRow, length, nrOfRows, annotation);
-        tableReader.SetIntegerColumn(integerColumn, colSel, annotation);
-        delete integerColumn;
+        bool hasAnnotation;
+        fdsReadIntVec_v8(myfile, integerColumn->Data(), pos, firstRow, length, nrOfRows, annotation, hasAnnotation);
+
+        if (hasAnnotation)
+        {
+          tableReader.SetIntegerColumn(integerColumn, colSel, annotation);
+          break;
+        }
+
+        tableReader.SetIntegerColumn(integerColumn, colSel);
         break;
       }
 
       // Double vector
       case 9:
       {
-        IDoubleColumn* doubleColumn = columnFactory->CreateDoubleColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale);
+        std::unique_ptr<IDoubleColumn> doubleColumnP(columnFactory->CreateDoubleColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale));
+        IDoubleColumn* doubleColumn = doubleColumnP.get();
+
         std::string annotation = "";
-        fdsReadRealVec_v9(myfile, doubleColumn->Data(), pos, firstRow, length, nrOfRows, annotation);
-        tableReader.SetDoubleColumn(doubleColumn, colSel, annotation);
-        delete doubleColumn;
+        bool hasAnnotation;
+        fdsReadRealVec_v9(myfile, doubleColumn->Data(), pos, firstRow, length, nrOfRows, annotation, hasAnnotation);
+
+        if (hasAnnotation)
+        {
+          tableReader.SetDoubleColumn(doubleColumn, colSel, annotation);
+          break;
+        }
+
+        tableReader.SetDoubleColumn(doubleColumn, colSel);
         break;
       }
 
       // Logical vector
       case 10:
       {
-        ILogicalColumn* logicalColumn = columnFactory->CreateLogicalColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]));
+        std::unique_ptr<ILogicalColumn> logicalColumnP(columnFactory->CreateLogicalColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
+        ILogicalColumn* logicalColumn = logicalColumnP.get();
         fdsReadLogicalVec_v10(myfile, logicalColumn->Data(), pos, firstRow, length, nrOfRows);
         tableReader.SetLogicalColumn(logicalColumn, colSel);
-        delete logicalColumn;
         break;
       }
 
       // Factor vector
       case 7:
       {
-        IFactorColumn* factorColumn = columnFactory->CreateFactorColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]));
+        std::unique_ptr<IFactorColumn> factorColumnP(columnFactory->CreateFactorColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
+        IFactorColumn* factorColumn = factorColumnP.get();
         fdsReadFactorVec_v7(myfile, factorColumn->Levels(), factorColumn->LevelData(), pos, firstRow, length, nrOfRows);
         tableReader.SetFactorColumn(factorColumn, colSel);
-        delete factorColumn;
         break;
       }
 
 	  // integer64 vector
 	  case 11:
 	  {
-	    IInt64Column* int64Column = columnFactory->CreateInt64Column(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale);
+      std::unique_ptr<IInt64Column> int64ColumP(columnFactory->CreateInt64Column(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale));
+	    IInt64Column* int64Column = int64ColumP.get();
       fdsReadInt64Vec_v11(myfile, int64Column->Data(), pos, firstRow, length, nrOfRows);
 	    tableReader.SetInt64Column(int64Column, colSel);
-	    delete int64Column;
 	    break;
 	  }
 
 	  // byte vector
 	  case 12:
 	  {
-		  IByteColumn* byteColumn = columnFactory->CreateByteColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]));
+      std::unique_ptr<IByteColumn> byteColumnP(columnFactory->CreateByteColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
+      IByteColumn* byteColumn = byteColumnP.get();
 		  fdsReadByteVec_v12(myfile, byteColumn->Data(), pos, firstRow, length, nrOfRows);
 		  tableReader.SetByteColumn(byteColumn, colSel);
-		  delete byteColumn;
 		  break;
 	  }
 
     default:
-      delete[] metaDataBlock;
-      metaDataBlock = nullptr;
-      delete[] colIndex;
-      //delete[] chunkIndex;
-      delete blockReader;
-      blockReader = nullptr;
       myfile.close();
       throw(runtime_error("Unknown type found in column."));
     }
   }
-
-  // delete blockReaderStrVec;
 
   myfile.close();
 
@@ -1014,9 +986,4 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, lo
   {
     selectedCols->SetElement(i, blockReader->GetElement(colIndex[i]));
   }
-
-  delete[] metaDataBlock;
-  metaDataBlock = nullptr;
-  delete[] colIndex;
-  //delete[] chunkIndex;
 }

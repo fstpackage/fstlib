@@ -693,15 +693,24 @@ public:
 		(*columnTypes)[colNr] = FstColumnType::CHARACTER;
 	}
 
-	void SetIntegerColumn(IIntegerColumn * integerColumn, int colNr, std::string &annotation)
+	void SetIntegerColumn(IIntegerColumn * integerColumn, int colNr)
 	{
 		IntVectorAdapter* intAdapter = (IntVectorAdapter*) integerColumn;
 		(*columns)[colNr] = intAdapter->DataPtr();
 		(*columnTypes)[colNr] = FstColumnType::INT_32;
     (*columnAttributes)[colNr] = intAdapter->Attribute();
-    (*colAnnotations)[colNr] = annotation;
     (*colScales)[colNr] = intAdapter->Scale();
 	}
+
+  void SetIntegerColumn(IIntegerColumn * integerColumn, int colNr, std::string &annotation)
+  {
+    IntVectorAdapter* intAdapter = (IntVectorAdapter*)integerColumn;
+    (*columns)[colNr] = intAdapter->DataPtr();
+    (*columnTypes)[colNr] = FstColumnType::INT_32;
+    (*columnAttributes)[colNr] = intAdapter->Attribute();
+    (*colAnnotations)[colNr] = annotation;
+    (*colScales)[colNr] = intAdapter->Scale();
+  }
 
 	void SetByteColumn(IByteColumn * byteColumn, int colNr)
 	{
@@ -733,6 +742,13 @@ public:
     (*colAnnotations)[colNr] = annotation;
 	}
 
+  void SetDoubleColumn(IDoubleColumn * doubleColumn, int colNr)
+  {
+    DoubleVectorAdapter* doubleAdapter = (DoubleVectorAdapter*) doubleColumn;
+    (*columns)[colNr] = doubleAdapter->DataPtr();
+    (*columnTypes)[colNr] = FstColumnType::DOUBLE_64;
+  }
+
 	void SetFactorColumn(IFactorColumn* factorColumn, int colNr)
 	{
 		FactorVectorAdapter* factColumn = static_cast<FactorVectorAdapter*>(factorColumn);
@@ -744,11 +760,13 @@ public:
 	{
 	}
 
-	FstColumnType ColumnType(unsigned int colNr, FstColumnAttribute &columnAttribute, short int &scale, std::string &annotation)
+	FstColumnType ColumnType(unsigned int colNr, FstColumnAttribute &columnAttribute, short int &scale, std::string &annotation, bool &hasAnnotation)
 	{
 		columnAttribute = (*columnAttributes)[colNr];
 		annotation += (*colAnnotations)[colNr];
     scale = (*colScales)[colNr];
+    hasAnnotation = false;
+
 		return (*columnTypes)[colNr];
 	}
 
