@@ -53,7 +53,8 @@ using namespace std;
 //  8                      | unsigned long long | hash value         // hash of table header
 //  4                      | unsigned int       | FST_VERSION        // table header fstcore version
 //  4                      | int                | table flags        // binary table flags
-//  8                      |                    | free bytes         // possible future use
+//  4                      | int                | fst magic number   // signature of every fst file
+//  4                      |                    | free bytes         // possible future use
 //  4                      | unsigned int       | FST_VERSION_MAX    // minimum fstcore version required
 //  4                      | int                | nrOfCols           // total number of columns in primary chunkset
 //  8                      | unsigned long long | primaryChunkSetLoc // reference to the table's primary chunkset
@@ -244,7 +245,8 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
   unsigned long long* p_headerHash        = reinterpret_cast<unsigned long long*>(metaDataWriteBlock);
   unsigned int* p_tableVersion            = reinterpret_cast<unsigned int*>(&metaDataWriteBlock[8]);
   int* p_tableFlags                       = reinterpret_cast<int*>(&metaDataWriteBlock[12]);
-  unsigned long long* p_freeBytes1        = reinterpret_cast<unsigned long long*>(&metaDataWriteBlock[16]);
+  int* p_fst_magic_number                     = reinterpret_cast<int*>(&metaDataWriteBlock[16]);
+  int* p_freeBytes1                       = reinterpret_cast<int*>(&metaDataWriteBlock[20]);
   unsigned int* p_tableVersionMax         = reinterpret_cast<unsigned int*>(&metaDataWriteBlock[24]);
   int* p_nrOfCols                         = reinterpret_cast<int*>(&metaDataWriteBlock[28]);
   unsigned long long* primaryChunkSetLoc  = reinterpret_cast<unsigned long long*>(&metaDataWriteBlock[32]);
@@ -296,6 +298,7 @@ void FstStore::fstWrite(IFstTable &fstTable, int compress) const
   *p_tableFlags = 0;
   *p_tableVersion                   = FST_VERSION;
 
+  *p_fst_magic_number               = FST_MAGIC_NUMBER;
   *p_freeBytes1                     = 0;
   *p_tableVersionMax                = FST_VERSION;
 
