@@ -26,6 +26,7 @@
     <ClCompile Include="..\..\..\tests\fstlibtests\fstcoretest.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\fstreadtest.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\fstwritetest.cpp" />
+    <ClCompile Include="..\..\..\tests\fstlibtests\hashtest.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\int64.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\multicolumntest.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\previousversion.cpp" />
