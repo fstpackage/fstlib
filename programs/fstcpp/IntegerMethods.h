@@ -4,11 +4,11 @@
 
 #include <cstdlib>
 
-inline void IntSeq(int* vec, int size, int valStart)
+inline void IntSeq(int* vec, int size, int valStart, int maxValue = INT_MAX)
 {
 	for (int count = 0; count != size; count++)
 	{
-		vec[count] = valStart + count;
+		vec[count] = (valStart + count) % maxValue;
 	}
 }
 
