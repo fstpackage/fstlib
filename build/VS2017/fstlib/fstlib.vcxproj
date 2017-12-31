@@ -41,6 +41,7 @@
     <ClInclude Include="..\..\..\lib\interface\openmphelper.h" />
     <ClInclude Include="..\..\..\lib\logical\logical_v10.h" />
     <ClInclude Include="..\..\..\lib\LZ4\lz4.h" />
+    <ClInclude Include="..\..\..\lib\LZ4\xxhash.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\bitstream.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\compiler.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\error_private.h" />
@@ -49,7 +50,6 @@
     <ClInclude Include="..\..\..\lib\ZSTD\common\mem.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\pool.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\threading.h" />
-    <ClInclude Include="..\..\..\lib\ZSTD\common\xxhash.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\zstd_errors.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\compress\zstdmt_compress.h" />
@@ -77,12 +77,12 @@
     <ClCompile Include="..\..\..\lib\interface\openmphelper.cpp" />
     <ClCompile Include="..\..\..\lib\logical\logical_v10.cpp" />
     <ClCompile Include="..\..\..\lib\LZ4\lz4.cpp" />
+    <ClCompile Include="..\..\..\lib\LZ4\xxhash.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\entropy_common.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\error_private.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\fse_decompress.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\pool.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\threading.c" />
-    <ClCompile Include="..\..\..\lib\ZSTD\common\xxhash.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\zstd_common.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\compress\fse_compress.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\compress\huf_compress.c" />
