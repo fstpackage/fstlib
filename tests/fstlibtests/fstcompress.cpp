@@ -167,7 +167,7 @@ TEST_F(CompressTest, LargeVector)
 
 	IntSeq(testData, 10, nrOfInts);  // create test data
 
-	SetFstThreads(37);
+	ThreadsFst(37);
 
 	CompDecompCycle(reinterpret_cast<unsigned char*>(testData), 4 * nrOfInts, COMPRESSION_ALGORITHM::ALGORITHM_LZ4, 0);
 

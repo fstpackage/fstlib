@@ -62,13 +62,13 @@ TEST_F(ThreadsTest, SingleThread)
 	EXPECT_GT(nrOfThreads, 1);
 
 	// Set to specific number of threads
-	int prevThreads = SetFstThreads(2);
+	int prevThreads = ThreadsFst(2);
 	EXPECT_EQ(prevThreads, nrOfThreads);
 
 	nrOfThreads = GetFstThreads();
 	EXPECT_EQ(nrOfThreads, 2);
 
-  prevThreads = SetFstThreads(0);
+  prevThreads = ThreadsFst(0);
   EXPECT_EQ(prevThreads, 2);
 }
 #endif

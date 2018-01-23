@@ -149,7 +149,8 @@ public:
 	}
 
 	// from parameter is one-based
-	static void CompareColumns(int nrOfRows, FstTable &subSet, StringArray &selectedCols, FstTable &tableRead, unsigned long long from = 1, unsigned long long size = -1)
+	static void CompareColumns(int nrOfRows, FstTable &subSet, StringArray &selectedCols, FstTable &tableRead,
+    unsigned long long from = 1, unsigned long long size = -1)
 	{
 		if (size == -1) size = 1 + nrOfRows - from;
 
@@ -175,7 +176,7 @@ public:
 		EXPECT_TRUE(res);
 	}
 
-	static void WriteReadSingleColumns(FstTable &fstTable, std::string fileName, int compression)
+	static void WriteReadSingleColumns(FstTable &fstTable, const std::string fileName, const int compression)
 	{
 		// Get column names
 		std::vector<std::string>* colNames = fstTable.ColumnNames();
