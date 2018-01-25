@@ -767,7 +767,7 @@ void CompactIntToByte(char* outVec, const char* intVec, unsigned int nrOfInts)
 
   int remain = nrOfInts - nrOfLongs * 8;
 
-  unsigned long long intBuf[4];
+  unsigned long long intBuf[4] {0, 0, 0, 0};
   memcpy(intBuf, &vecIn[blockIndex], remain * 4);
 
   vecOut[++offset] =
@@ -889,7 +889,7 @@ void DecompactByteToInt(const char* compressedVec, char* intVec, unsigned int nr
   // Process last integers
   int remain = nrOfInts - nrOfLongs * 8;
 
-  unsigned long long intBuf[4];
+  unsigned long long intBuf[4] {0, 0, 0, 0};
 
   unsigned long long val = vecCompress[nrOfLongs];
     intBuf[0] = ((val >> 24) & byte0) | ( val       & byteNA);
