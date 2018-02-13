@@ -56,8 +56,8 @@ inline unsigned int StoreCharBlock_v6(ofstream& myfile, IStringWriter* blockRunn
 
 
 inline unsigned int storeCharBlockCompressed_v6(ofstream& myfile, IStringWriter* blockRunner, unsigned int startCount,
-                                                unsigned int endCount, StreamCompressor* intCompressor, StreamCompressor* charCompressor, unsigned short int& algoInt,
-                                                unsigned short int& algoChar, int& intBufSize, int blockNr)
+  unsigned int endCount, StreamCompressor* intCompressor, StreamCompressor* charCompressor, unsigned short int& algoInt,
+  unsigned short int& algoChar, int& intBufSize, int blockNr)
 {
   // Determine string lengths
   unsigned int nrOfElements = endCount - startCount; // the string at position endCount is not included
@@ -110,7 +110,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 
   if (vec_length < 1)
   {
-    throw("must be at least 1 element");
+    throw std::runtime_error("must be at least 1 element");
   }
 
   // total number of blocks to be processed (note: imposes limit of 4e12 rows)
@@ -124,8 +124,8 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   const int nr_of_jobs = 1 + (nr_of_blocks - 1) / blocks_per_job;
 
   // total size of all batches for one thread
-  int max_batch_sizes[STD_MAX_CHAR_THREADS];
-  int max_block_sizes[STD_MAX_CHAR_THREADS];
+  unsigned int max_batch_sizes[STD_MAX_CHAR_THREADS];
+  unsigned int max_block_sizes[STD_MAX_CHAR_THREADS];
 
   // thread buffers
   char* thread_buffer[STD_MAX_CHAR_THREADS]; // store batch of compressed blocks
@@ -140,169 +140,179 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
     block_buffer[thread_id] = nullptr;
   }
 
-  // string offsets per block
-  const int job_size = blocks_per_job * BLOCKSIZE_CHAR;
-
   // column meta data
   // first CHAR_HEADER_SIZE bytes store compression setting and block size
-  const unsigned int metaSize = CHAR_HEADER_SIZE + (nr_of_blocks + 1) * 8;
-  std::unique_ptr<char[]> metaP(new char[metaSize]);
+  const unsigned int meta_size = CHAR_HEADER_SIZE + nr_of_blocks * 8;
+  std::unique_ptr<char[]> metaP(new char[meta_size]);
   char* meta = metaP.get();
   const auto block_pos = reinterpret_cast<unsigned long long*>(&meta[CHAR_HEADER_SIZE]);
-  block_pos[0] = 0;
 
   const unsigned int nr_of_na_ints = 1 + BLOCKSIZE_CHAR / 32; // add 1 bit for NA present flag
   const unsigned int str_sizes_block_size = BLOCKSIZE_CHAR + nr_of_na_ints;
   const unsigned int str_sizes_batch_size = blocks_per_job * (BLOCKSIZE_CHAR + nr_of_na_ints);
-  std::unique_ptr<int[]> str_sizes_bufP(new int[nr_of_threads * blocks_per_job * (BLOCKSIZE_CHAR + nr_of_na_ints)]);
-  int* str_sizes_buf = str_sizes_bufP.get();
+
+  std::unique_ptr<unsigned int[]> str_sizes_bufP(new unsigned int[nr_of_threads * blocks_per_job * (BLOCKSIZE_CHAR + nr_of_na_ints)]);
+  unsigned int* str_sizes_buf = str_sizes_bufP.get();
+
+  // Set column header
+  const auto is_compressed = reinterpret_cast<unsigned int*>(meta);
+  const auto block_size_char = reinterpret_cast<unsigned int*>(&meta[4]);
+  *block_size_char = BLOCKSIZE_CHAR; // number of elements in a single block
 
   if (compression == 0)
   {
-    // Set column header
-    const auto is_compressed = reinterpret_cast<unsigned int*>(meta);
-    const auto block_size_char = reinterpret_cast<unsigned int*>(&meta[4]);
     *is_compressed = stringEncoding << 1;  // bit 1 and 2 used for character encoding
-    *block_size_char = BLOCKSIZE_CHAR; // number of elements in a single block
+  }
+  else
+  {
+    *is_compressed = (stringEncoding << 1) | 1; // set compression flag
+  }
 
-    myfile.write(meta, metaSize); // write block offset index
+  myfile.write(meta, meta_size); // write block offset index
 
-    unsigned long long full_size = metaSize;
+  unsigned long long column_size = meta_size;
 
-    // Start of parallel region
+  // Start of parallel region
 
-    #pragma omp parallel num_threads(nr_of_threads)
+  #pragma omp parallel num_threads(nr_of_threads) shared(column_size)
+  {
+    #pragma omp for ordered schedule(static, 1)
+    for (int job_nr = 0; job_nr < nr_of_jobs; job_nr++)
     {
-      #pragma omp for ordered schedule(static, 1)
-      for (int job_nr = 0; job_nr < nr_of_jobs; job_nr++)
+      // each job contains several blocks to process. The grouping is done to
+      // write larger chunks of data to disk in the end to avoid firing to
+      // many IO requests to the storage medium
+
+      // thread specific buffers and counters
+      const int cur_thread = CurrentFstThread();
+      int tot_batch_size = 0;  // required compression buffer size for this batch
+      const int start_block = job_nr * blocks_per_job;
+      int str_sizes_counter = cur_thread * str_sizes_batch_size;
+      int max_block_size = 0;
+
+      int block_sizes[BATCH_SIZE_WRITE_CHAR];
+
+      const int end_block = std::min(start_block + blocks_per_job, nr_of_blocks);
+
+      for (int block_nr = start_block; block_nr < end_block; block_nr++)
       {
-        // each job contains several blocks to process. The grouping is done to
-        // write larger chunks of data to disk in the end to avoid firing to
-        // many IO requests to the storage medium
+        const int cur_nr_of_elements = std::min(vec_length, static_cast<unsigned long long>(block_nr + 1) * BLOCKSIZE_CHAR) -
+          block_nr * BLOCKSIZE_CHAR;
+        const unsigned int na_int_length = 1 + cur_nr_of_elements / 32; // add 1 bit for NA present flag
+        const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
 
-        // thread specific buffers and counters
-        const int cur_thread = CurrentFstThread();
-        int tot_batch_size = 0;  // required compression buffer size for this batch
-        const int start_block = job_nr * blocks_per_job;
-        int str_sizes_counter = cur_thread * str_sizes_batch_size;
-        int max_block_size = 0;
+        const int cur_block_size = stringWriter->CalculateSizes(block_nr * BLOCKSIZE_CHAR, cur_nr_of_elements,
+          &str_sizes_buf[str_sizes_counter]);
 
-        int block_sizes[BATCH_SIZE_WRITE_CHAR];
+        block_sizes[block_nr - start_block] = cur_block_size + cur_na_length;
+        str_sizes_counter += str_sizes_block_size;  // not used anymore after last block
 
-        int end_block = std::min(start_block + blocks_per_job, nr_of_blocks);
+        // retain largest block size
+        if (cur_block_size > max_block_size)
+        {
+          max_block_size = cur_block_size;
+        }
 
-        // all but last job
+        // add block size to batch size
+        // compress sizes buffer into batch buffer
+        tot_batch_size += cur_block_size + cur_na_length;
+      }
+
+      // now we know the total batch size (in number of characters)
+
+      // check if we have enough memory to serialize a single block
+      if (max_block_size > max_block_sizes[cur_thread])
+      {
+        // delete previously allocated memory (if any)
+        if (max_block_sizes[cur_thread] > 0)
+        {
+          delete[] block_buffer[cur_thread];
+        }
+
+        max_block_sizes[cur_thread] = static_cast<int>(max_block_size * 1.1);  // 10 percent over allocation
+
+        // allocate larger block buffer
+        block_buffer[cur_thread] = new char[max_block_sizes[cur_thread]];
+      }
+
+      // check if we have enough buffer memory to compress batch
+      if (tot_batch_size > max_batch_sizes[cur_thread])
+      {
+        // delete previously allocated memory (if any)
+        if (max_batch_sizes[cur_thread] > 0)
+        {
+          delete[] thread_buffer[cur_thread];
+        }
+
+        const int new_buffer_size = static_cast<int>(tot_batch_size * 1.1);
+        max_batch_sizes[cur_thread] = new_buffer_size;  // 10 percent over allocation
+
+        // allocate larger thread buffer
+        char* bufferP = new char[new_buffer_size];
+        thread_buffer[cur_thread] = bufferP;
+      }
+
+      // Now read from memory and serialize into thread buffer.
+      // Then compress buffer and write to disk.
+
+      str_sizes_counter = cur_thread * str_sizes_batch_size;
+      tot_batch_size = 0;
+      char* cur_thread_buffer = thread_buffer[cur_thread];
+
+      // rerun each element, serialize sting contents and compress into target buffer
+      for (int block_nr = start_block; block_nr < end_block; block_nr++)
+      {
+        const int cur_nr_of_elements = std::min(vec_length, static_cast<unsigned long long>(block_nr + 1) * BLOCKSIZE_CHAR) -
+          block_nr * BLOCKSIZE_CHAR;
+
+        const int start_pos = block_nr * BLOCKSIZE_CHAR;
+        char* block_buf = block_buffer[cur_thread];
+        const int cur_block_size = block_sizes[block_nr - start_block];
+
+        // compress sizes buffer into batch buffer
+        const unsigned int na_int_length = 1 + cur_nr_of_elements / 32; // add 1 bit for NA present flag
+        const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
+
+        memcpy(&cur_thread_buffer[tot_batch_size], &str_sizes_buf[str_sizes_counter], cur_na_length);
+
+        stringWriter->SerializeCharBlock(start_pos, cur_nr_of_elements, &str_sizes_buf[str_sizes_counter], block_buf);
+        str_sizes_counter += str_sizes_block_size;
+
+        // compress block buffer into batch buffer
+        memcpy(&cur_thread_buffer[tot_batch_size + cur_na_length], block_buf, cur_block_size - cur_na_length);
+        tot_batch_size += cur_block_size;
+      }
+
+      // write data to disk
+      #pragma omp ordered
+      {
+        myfile.write(cur_thread_buffer, tot_batch_size); // additional zero for index convenience
+
+        // update block positions serially
         for (int block_nr = start_block; block_nr < end_block; block_nr++)
         {
-          int cur_nr_of_elements = std::min(vec_length, static_cast<unsigned long long>(block_nr + 1) * BLOCKSIZE_CHAR);
-          const unsigned int na_int_length = 1 + cur_nr_of_elements / 32; // add 1 bit for NA present flag
-          const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
-
-          const int cur_block_size = stringWriter->CalculateSizes(block_nr * BLOCKSIZE_CHAR, cur_nr_of_elements,
-            &str_sizes_buf[str_sizes_counter]);
-
-          block_sizes[block_nr - start_block] = cur_block_size;
-          str_sizes_counter += str_sizes_block_size;  // not used anymore after last block
-
-          // retain largest block size
-          if (cur_block_size > max_block_size)
-          {
-            max_block_size = cur_block_size;
-          }
-
-          // add block size to batch size
-          // compress sizes buffer into batch buffer
-          tot_batch_size += cur_block_size + cur_na_length;
-          block_pos[block_nr + 1] = tot_batch_size;
-        }
-
-        // now we know the total batch size (in number of characters)
-
-        // check if we have enough memory to serialize a single block
-        if (max_block_size > max_block_sizes[cur_thread])
-        {
-          // delete previously allocated memory (if any)
-          if (max_block_sizes[cur_thread] > 0)
-          {
-            delete[] block_buffer[cur_thread];
-          }
-
-          max_block_sizes[cur_thread] = static_cast<int>(max_block_size * 1.1);  // 10 percent over allocation
-
-          // allocate larger block buffer
-          block_buffer[cur_thread] = new char[max_block_sizes[cur_thread]];
-        }
-
-        // check if we have enough buffer memory to compress batch
-        if (tot_batch_size > max_batch_sizes[cur_thread])
-        {
-          // delete previously allocated memory (if any)
-          if (max_batch_sizes[cur_thread] > 0)
-          {
-            delete[] thread_buffer[cur_thread];
-          }
-
-          int new_buffer_size = static_cast<int>(tot_batch_size * 1.1);
-          max_batch_sizes[cur_thread] = new_buffer_size;  // 10 percent over allocation
-
-          // allocate larger thread buffer
-          char* bufferP = new char[new_buffer_size];
-          thread_buffer[cur_thread] = bufferP;
-        }
-
-        // Now read from memory and serialize into thread buffer.
-        // Then compress buffer and write to disk.
-
-        str_sizes_counter = cur_thread * str_sizes_batch_size;
-        tot_batch_size = 0;
-
-        // rerun each element, serialize sting contents and compress into target buffer
-        for (int block_nr = start_block; block_nr < end_block; block_nr++)
-        {
-          int cur_nr_of_elements = std::min(vec_length, static_cast<unsigned long long>(block_nr + 1) * BLOCKSIZE_CHAR);
-
-          const int start_pos = block_nr * BLOCKSIZE_CHAR;
-          char* block_buf = block_buffer[cur_thread];
-          int cur_block_size = block_sizes[block_nr - start_block];
-
-          // compress sizes buffer into batch buffer
-          const unsigned int na_int_length = 1 + cur_nr_of_elements / 32; // add 1 bit for NA present flag
-          const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
-
-          memcpy(&thread_buffer[tot_batch_size], &str_sizes_buf[str_sizes_counter], cur_na_length);
-          tot_batch_size += cur_na_length;
-
-          stringWriter->SerializeCharBlock(start_pos, cur_nr_of_elements, &str_sizes_buf[str_sizes_counter], block_buf);
-          str_sizes_counter += str_sizes_block_size;
-
-          // compress block buffer into batch buffer
-          memcpy(&thread_buffer[tot_batch_size], block_buf, cur_block_size);
-          tot_batch_size += cur_block_size;
-        }
-
-        // write data to disk
-        #pragma omp ordered
-        {
-          int x = 0;
+          column_size += block_sizes[block_nr - start_block];
+          block_pos[block_nr] = column_size;
         }
       }
     }
-
-    myfile.seekp(curPos + CHAR_HEADER_SIZE);
-    myfile.write(reinterpret_cast<char*>(block_pos), (nr_of_blocks + 1) * 8); // additional zero for index convenience
-    myfile.seekp(0, ios_base::end);  // back to end of file
-
-    for (int thread_id = 0; thread_id < nr_of_threads; thread_id++)
-    {
-      char* thread_bufferP = thread_buffer[thread_id];
-      delete[] thread_bufferP;
-
-      char* block_bufferP = block_buffer[thread_id];
-      delete[] block_bufferP;
-    }
-
-    return;
   }
+
+  myfile.seekp(curPos + CHAR_HEADER_SIZE);
+  myfile.write(reinterpret_cast<char*>(block_pos), nr_of_blocks * 8); // additional zero for index convenience
+  myfile.seekp(0, ios_base::end);  // back to end of file
+
+  for (int thread_id = 0; thread_id < nr_of_threads; thread_id++)
+  {
+    char* thread_bufferP = thread_buffer[thread_id];
+    delete[] thread_bufferP;
+
+    char* block_bufferP = block_buffer[thread_id];
+    delete[] block_bufferP;
+  }
+
+  return;
+}
 
   //////////////////////////////////////
 
@@ -392,7 +402,6 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   //myfile.seekp(curPos + CHAR_HEADER_SIZE);
   //myfile.write(static_cast<char*>(&meta[CHAR_HEADER_SIZE]), (nr_of_blocks + 1) * CHAR_INDEX_SIZE); // additional zero for index convenience
   //myfile.seekp(0, ios_base::end);  // back to end of file
-}
 
 
 inline void ReadDataBlock_v6(istream& myfile, IStringColumn* blockReader, unsigned long long blockSize, unsigned long long nrOfElements,

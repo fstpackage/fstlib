@@ -46,42 +46,42 @@ using namespace std;
 void fdsWriteFactorVec_v7(ofstream &myfile, int* intP, IStringWriter* blockRunner, unsigned long long size, unsigned int compression,
 	StringEncoding stringEncoding, std::string annotation, bool hasAnnotation)
 {
-  unsigned long long blockPos = myfile.tellp();  // offset for factor
-  unsigned int nrOfFactorLevels = blockRunner->vecLength;
+  const unsigned long long blockPos = myfile.tellp();  // offset for factor
+  const unsigned int nrOfFactorLevels = blockRunner->vecLength;
 
   // Vector meta data
   char meta[HEADER_SIZE_FACTOR];
-  unsigned int* versionNr = reinterpret_cast<unsigned int*>(&meta);
-  unsigned int* nrOfLevels = reinterpret_cast<unsigned int*>(&meta[4]);
-  unsigned long long* levelVecPos = reinterpret_cast<unsigned long long*>(&meta[8]);
+  unsigned int* version_nr = reinterpret_cast<unsigned int*>(&meta);
+  unsigned int* nr_of_levels = reinterpret_cast<unsigned int*>(&meta[4]);
+  unsigned long long* level_vec_pos = reinterpret_cast<unsigned long long*>(&meta[8]);
 
-  *versionNr = 0;
-  *nrOfLevels = 0;
-  *levelVecPos = 0;
+  *version_nr = 0;
+  *nr_of_levels = 0;
+  *level_vec_pos = 0;
 
   // Use blockrunner to store factor levels if length > 0
   if (nrOfFactorLevels > 0)
   {
 	  myfile.write(meta, HEADER_SIZE_FACTOR);  // number of levels
-	  *nrOfLevels = nrOfFactorLevels;
+	  *nr_of_levels = nrOfFactorLevels;
 	  fdsWriteCharVec_v6(myfile, blockRunner, compression, stringEncoding);   // factor levels
 
 	  // Rewrite meta-data
-	  *versionNr = VERSION_NUMBER_FACTOR;
-	  *levelVecPos = myfile.tellp();  // offset for level vector
+	  *version_nr = VERSION_NUMBER_FACTOR;
+	  *level_vec_pos = myfile.tellp();  // offset for level vector
 
 	  myfile.seekp(blockPos);
 	  myfile.write(meta, HEADER_SIZE_FACTOR);  // number of levels
-	  myfile.seekp(*levelVecPos);  // return to end of file
+	  myfile.seekp(*level_vec_pos);  // return to end of file
   }
   else
   {
 	  // With zero levels all data values must be zero. Therefore, we only need to
  	  // add the vector length to have enough information.
 	  // (see also https://github.com/fstpackage/fst/issues/56)
-	  *nrOfLevels = 0;
-	  *versionNr = VERSION_NUMBER_FACTOR;
-	  *levelVecPos = blockPos + HEADER_SIZE_FACTOR;  // offset for level vector
+	  *nr_of_levels = 0;
+	  *version_nr = VERSION_NUMBER_FACTOR;
+	  *level_vec_pos = blockPos + HEADER_SIZE_FACTOR;  // offset for level vector
 	  myfile.write(meta, HEADER_SIZE_FACTOR);  // write meta data
 
 	  return;
@@ -123,7 +123,7 @@ void fdsWriteFactorVec_v7(ofstream &myfile, int* intP, IStringWriter* blockRunne
 
   const int blockSize = 4 * BLOCKSIZE_INT;  // block size in bytes
 
-  if (*nrOfLevels < 128)  // use 1 byte per int (Na encoding takes 1 bit)
+  if (*nr_of_levels < 128)  // use 1 byte per int (Na encoding takes 1 bit)
   {
     if (compression <= 50)
     {
@@ -157,7 +157,7 @@ void fdsWriteFactorVec_v7(ofstream &myfile, int* intP, IStringWriter* blockRunne
     return;
   }
 
-  if (*nrOfLevels < 32768)  // use 2 bytes per int
+  if (*nr_of_levels < 32768)  // use 2 bytes per int
   {
     if (compression <= 50)
     {
