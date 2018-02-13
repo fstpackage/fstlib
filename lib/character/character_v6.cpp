@@ -127,15 +127,18 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   int max_batch_sizes[STD_MAX_CHAR_THREADS];
   int max_block_sizes[STD_MAX_CHAR_THREADS];
 
+  // thread buffers
+  char* thread_buffer[STD_MAX_CHAR_THREADS]; // store batch of compressed blocks
+  char* block_buffer[STD_MAX_CHAR_THREADS];  // store single uncompressed block
+
   for (int thread_id = 0; thread_id < nr_of_threads; thread_id++)
   {
     max_batch_sizes[thread_id] = 0;
     max_block_sizes[thread_id] = 0;
-  }
 
-  // thread buffers
-  char* thread_buffer[STD_MAX_CHAR_THREADS]; // store batch of compressed blocks
-  char* block_buffer[STD_MAX_CHAR_THREADS];  // store single uncompressed block
+    thread_buffer[thread_id] = nullptr;
+    block_buffer[thread_id] = nullptr;
+  }
 
   // string offsets per block
   const int job_size = blocks_per_job * BLOCKSIZE_CHAR;
@@ -146,6 +149,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   std::unique_ptr<char[]> metaP(new char[metaSize]);
   char* meta = metaP.get();
   const auto block_pos = reinterpret_cast<unsigned long long*>(&meta[CHAR_HEADER_SIZE]);
+  block_pos[0] = 0;
 
   const unsigned int nr_of_na_ints = 1 + BLOCKSIZE_CHAR / 32; // add 1 bit for NA present flag
   const unsigned int str_sizes_block_size = BLOCKSIZE_CHAR + nr_of_na_ints;
@@ -191,6 +195,8 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
         for (int block_nr = start_block; block_nr < end_block; block_nr++)
         {
           int cur_nr_of_elements = std::min(vec_length, static_cast<unsigned long long>(block_nr + 1) * BLOCKSIZE_CHAR);
+          const unsigned int na_int_length = 1 + cur_nr_of_elements / 32; // add 1 bit for NA present flag
+          const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
 
           const int cur_block_size = stringWriter->CalculateSizes(block_nr * BLOCKSIZE_CHAR, cur_nr_of_elements,
             &str_sizes_buf[str_sizes_counter]);
@@ -205,7 +211,9 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
           }
 
           // add block size to batch size
-          tot_batch_size += cur_block_size;
+          // compress sizes buffer into batch buffer
+          tot_batch_size += cur_block_size + cur_na_length;
+          block_pos[block_nr + 1] = tot_batch_size;
         }
 
         // now we know the total batch size (in number of characters)
@@ -225,11 +233,8 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
           block_buffer[cur_thread] = new char[max_block_sizes[cur_thread]];
         }
 
-        // determine required thread buffer size with NA flags, string sizes and string data sub-buffers
-        unsigned long long compress_buffer_size = tot_batch_size + blocks_per_job * 4 * (nr_of_na_ints + BLOCKSIZE_CHAR);
-
         // check if we have enough buffer memory to compress batch
-        if (compress_buffer_size > max_batch_sizes[cur_thread])
+        if (tot_batch_size > max_batch_sizes[cur_thread])
         {
           // delete previously allocated memory (if any)
           if (max_batch_sizes[cur_thread] > 0)
@@ -237,11 +242,12 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
             delete[] thread_buffer[cur_thread];
           }
 
-          int new_buffer_size = static_cast<int>(compress_buffer_size * 1.1);
+          int new_buffer_size = static_cast<int>(tot_batch_size * 1.1);
           max_batch_sizes[cur_thread] = new_buffer_size;  // 10 percent over allocation
 
           // allocate larger thread buffer
-          thread_buffer[cur_thread] = new char[new_buffer_size];
+          char* bufferP = new char[new_buffer_size];
+          thread_buffer[cur_thread] = bufferP;
         }
 
         // Now read from memory and serialize into thread buffer.
@@ -266,7 +272,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
           memcpy(&thread_buffer[tot_batch_size], &str_sizes_buf[str_sizes_counter], cur_na_length);
           tot_batch_size += cur_na_length;
 
-          stringWriter->SerializeCharBlock(start_pos, BLOCKSIZE_CHAR, &str_sizes_buf[str_sizes_counter], block_buf);
+          stringWriter->SerializeCharBlock(start_pos, cur_nr_of_elements, &str_sizes_buf[str_sizes_counter], block_buf);
           str_sizes_counter += str_sizes_block_size;
 
           // compress block buffer into batch buffer
@@ -277,28 +283,23 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
         // write data to disk
         #pragma omp ordered
         {
-          block_pos[0] = 0;
+          int x = 0;
         }
-
       }
     }
 
-
-
-    //for (unsigned long long block = 0; block < nrOfBlocks; ++block)
-    //{
-    //  const unsigned int totSize = StoreCharBlock_v6(myfile, stringWriter, block * BLOCKSIZE_CHAR, (block + 1) * BLOCKSIZE_CHAR);
-    //  fullSize += totSize;
-    //  blockPos[block] = fullSize;
-    //}
-
-    //const unsigned int totSize = StoreCharBlock_v6(myfile, stringWriter, nrOfBlocks * BLOCKSIZE_CHAR, vecLength);
-    //fullSize += totSize;
-    //blockPos[nrOfBlocks] = fullSize;
-     
     myfile.seekp(curPos + CHAR_HEADER_SIZE);
     myfile.write(reinterpret_cast<char*>(block_pos), (nr_of_blocks + 1) * 8); // additional zero for index convenience
     myfile.seekp(0, ios_base::end);  // back to end of file
+
+    for (int thread_id = 0; thread_id < nr_of_threads; thread_id++)
+    {
+      char* thread_bufferP = thread_buffer[thread_id];
+      delete[] thread_bufferP;
+
+      char* block_bufferP = block_buffer[thread_id];
+      delete[] block_bufferP;
+    }
 
     return;
   }
@@ -388,9 +389,9 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   //delete compressChar;
   //delete compressChar2;
 
-  myfile.seekp(curPos + CHAR_HEADER_SIZE);
-  myfile.write(static_cast<char*>(&meta[CHAR_HEADER_SIZE]), (nr_of_blocks + 1) * CHAR_INDEX_SIZE); // additional zero for index convenience
-  myfile.seekp(0, ios_base::end);  // back to end of file
+  //myfile.seekp(curPos + CHAR_HEADER_SIZE);
+  //myfile.write(static_cast<char*>(&meta[CHAR_HEADER_SIZE]), (nr_of_blocks + 1) * CHAR_INDEX_SIZE); // additional zero for index convenience
+  //myfile.seekp(0, ios_base::end);  // back to end of file
 }
 
 
