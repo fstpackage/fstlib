@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\tests\fstlibtests\byte.cpp" />
+    <ClCompile Include="..\..\..\tests\fstlibtests\characters.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\date.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\factors.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\fstcompress.cpp" />

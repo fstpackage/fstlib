@@ -51,6 +51,16 @@ int ThreadsFst(int nrOfThreads)
 }
 
 
+int CurrentFstThread()
+{
+#ifdef _OPENMP
+  return omp_get_thread_num();
+#else
+  return 0;
+#endif
+}
+
+
 void SetThreads(int nrOfThreads)
 {
   FstThreads = nrOfThreads;

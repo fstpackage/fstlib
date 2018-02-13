@@ -47,6 +47,17 @@ public:
   virtual StringEncoding Encoding() = 0;
 
   virtual void SetBuffersFromVec(unsigned long long startCount, unsigned long long endCount) = 0;
+  
+  virtual int CalculateSizes(const int start_pos, const int nr_of_elements, int* cumu_sizes) = 0;
+
+  /**
+   * \brief Serialize a range of strings from the vector to a prefefined buffer.
+   * \param start_pos Starting position of string to serialize.
+   * \param nr_of_elements number of elements to serialize.
+   * \param cumu_str_sizes cumulative element sizes.
+   * \param block_buf a buffer to store the serialized data.
+   */
+  virtual void SerializeCharBlock(int start_pos, int nr_of_elements, int* cumu_str_sizes, char* block_buf) = 0;
 };
 
 

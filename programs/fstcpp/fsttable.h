@@ -488,6 +488,50 @@ public:
 
 	~BlockWriter() { delete[] heapBuf; }
 
+  int CalculateSizes(const int start_pos, const int nr_of_elements, int* cumu_sizes)
+  {
+    int end_pos = start_pos + nr_of_elements;
+    int cumu_size = 0;
+    int element_count = 0;
+
+    const unsigned int nr_of_na_ints = 1 + nr_of_elements / 32; // add 1 bit for NA present flag
+
+    for (int pos = start_pos; pos < end_pos; pos++)
+    {
+      cumu_size += (*strVecP)[pos].size();
+      cumu_sizes[element_count] = cumu_size;
+      element_count++;
+    }
+
+    // add na flags
+
+    for (int pos = 0; pos < nr_of_na_ints; pos++)
+    {
+      cumu_sizes[element_count] = 0;
+      element_count++;
+    }
+
+    return cumu_size;
+  }
+
+  void SerializeCharBlock(int start_pos, int nr_of_elements, int* cumu_str_sizes, char* block_buf)
+  {
+    int end_pos = start_pos + nr_of_elements;
+    int element_count = 0;
+    int cumu_size = 0;
+
+    const unsigned int nr_of_na_ints = 1 + nr_of_elements / 32; // add 1 bit for NA present flag
+
+    for (int pos = start_pos; pos < end_pos; pos++)
+    {
+      int element_pos = cumu_str_sizes[element_count];
+      memcpy(&block_buf[cumu_size], (*strVecP)[pos].c_str(), element_pos - cumu_size);
+      cumu_size = element_pos;
+      element_count++;
+    }
+  }
+
+
 	void SetBuffersFromVec(unsigned long long startCount, unsigned long long endCount)
 	{
 		// Determine string lengths

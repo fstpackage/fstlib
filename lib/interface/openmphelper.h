@@ -47,6 +47,13 @@ int ThreadsFst(int nrOfThreads);
 
 
 /**
+ * \brief Return the currently active thread in an OpenMP construct.
+ * \return ID of the currently active thread.
+ */
+int CurrentFstThread();
+
+
+/**
  * \brief Set the number of threads without querying the current number of threads used.
  * Use this method instead of ThreadsFst when calling from a fork.
  * \param nrOfThreads number of threads to use for parallel computation.
