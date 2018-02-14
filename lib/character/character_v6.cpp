@@ -41,13 +41,13 @@ inline unsigned int StoreCharBlock_v6(ofstream& myfile, IStringWriter* blockRunn
 {
   blockRunner->SetBuffersFromVec(startCount, endCount);
 
-  unsigned int nrOfElements = endCount - startCount; // the string at position endCount is not included
-  unsigned int nrOfNAInts = 1 + nrOfElements / 32; // add 1 bit for NA present flag
+  const unsigned int nrOfElements = endCount - startCount; // the string at position endCount is not included
+  const unsigned int nrOfNAInts = 1 + nrOfElements / 32; // add 1 bit for NA present flag
 
   myfile.write(reinterpret_cast<char*>(blockRunner->strSizes), nrOfElements * 4); // write string lengths
   myfile.write(reinterpret_cast<char*>(blockRunner->naInts), nrOfNAInts * 4); // write string lengths
 
-  unsigned int totSize = blockRunner->bufSize;
+  const unsigned int totSize = blockRunner->bufSize;
 
   myfile.write(blockRunner->activeBuf, totSize);
 
@@ -60,16 +60,16 @@ inline unsigned int storeCharBlockCompressed_v6(ofstream& myfile, IStringWriter*
   unsigned short int& algoChar, int& intBufSize, int blockNr)
 {
   // Determine string lengths
-  unsigned int nrOfElements = endCount - startCount; // the string at position endCount is not included
-  unsigned int nrOfNAInts = 1 + nrOfElements / 32; // add 1 bit for NA present flag
+  const unsigned int nrOfElements = endCount - startCount; // the string at position endCount is not included
+  const unsigned int nrOfNAInts = 1 + nrOfElements / 32; // add 1 bit for NA present flag
 
 
   // Compress string size vector
-  unsigned int strSizesBufLength = nrOfElements * 4;
+  const unsigned int strSizesBufLength = nrOfElements * 4;
 
   // 1) Use stack buffer here !!!!!!
   // 2) compress to 1 or 2 bytes if possible with strSizesBufLength
-  int bufSize = intCompressor->CompressBufferSize(strSizesBufLength); // 1 integer per string
+  const int bufSize = intCompressor->CompressBufferSize(strSizesBufLength); // 1 integer per string
 
   std::unique_ptr<char[]> intBufP(new char[bufSize]);
   char* intBuf = intBufP.get();
@@ -84,15 +84,15 @@ inline unsigned int storeCharBlockCompressed_v6(ofstream& myfile, IStringWriter*
   // Write NA bits uncompressed (add compression later ?)
   myfile.write(reinterpret_cast<char*>(blockRunner->naInts), nrOfNAInts * 4); // write string lengths
 
-  unsigned int totSize = blockRunner->bufSize;
+  const unsigned int totSize = blockRunner->bufSize;
 
-  int compBufSize = charCompressor->CompressBufferSize(totSize);
+  const int compBufSize = charCompressor->CompressBufferSize(totSize);
 
   std::unique_ptr<char[]> compBufP(new char[compBufSize]);
   char* compBuf = compBufP.get();
 
   // Compress buffer
-  int resSize = charCompressor->Compress(blockRunner->activeBuf, totSize, compBuf, compAlgorithm, blockNr);
+  const int resSize = charCompressor->Compress(blockRunner->activeBuf, totSize, compBuf, compAlgorithm, blockNr);
   myfile.write(compBuf, resSize);
 
   algoChar = static_cast<unsigned short int>(compAlgorithm); // store selected algorithm
@@ -159,6 +159,10 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   const auto block_size_char = reinterpret_cast<unsigned int*>(&meta[4]);
   *block_size_char = BLOCKSIZE_CHAR; // number of elements in a single block
 
+  Compressor* compress1 = nullptr;
+  Compressor* compress2 = nullptr;
+  StreamCompressor* stream_compressor = nullptr;
+
   if (compression == 0)
   {
     *is_compressed = stringEncoding << 1;  // bit 1 and 2 used for character encoding
@@ -166,6 +170,16 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   else
   {
     *is_compressed = (stringEncoding << 1) | 1; // set compression flag
+
+    if (compression <= 50)  // low compression: linear mix of uncompressed and LZ4_SHUF
+    {
+      compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
+      stream_compressor = new StreamLinearCompressor(compress1, 2 * compression);
+    }
+
+    compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
+    compress2 = new SingleCompressor(CompAlgo::ZSTD_SHUF4, 2 * (compression - 50));
+    stream_compressor = new StreamCompositeCompressor(compress1, compress2, 2 * (compression - 50));
   }
 
   myfile.write(meta, meta_size); // write block offset index
@@ -273,7 +287,12 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
         const unsigned int na_int_length = 1 + cur_nr_of_elements / 32; // add 1 bit for NA present flag
         const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
 
-        memcpy(&cur_thread_buffer[tot_batch_size], &str_sizes_buf[str_sizes_counter], cur_na_length);
+        // compress and determine compressed size
+        CompAlgo algo;
+        int compressed_size = stream_compressor->Compress(reinterpret_cast<char*>(&str_sizes_buf[str_sizes_counter]), cur_na_length * 4,
+          &cur_thread_buffer[tot_batch_size], algo, block_nr);
+
+        //memcpy(&cur_thread_buffer[tot_batch_size], &str_sizes_buf[str_sizes_counter], cur_na_length);
 
         stringWriter->SerializeCharBlock(start_pos, cur_nr_of_elements, &str_sizes_buf[str_sizes_counter], block_buf);
         str_sizes_counter += str_sizes_block_size;
@@ -405,10 +424,10 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 
 
 inline void ReadDataBlock_v6(istream& myfile, IStringColumn* blockReader, unsigned long long blockSize, unsigned long long nrOfElements,
-                             unsigned long long startElem, unsigned long long endElem, unsigned long long vecOffset)
+  unsigned long long startElem, unsigned long long endElem, unsigned long long vecOffset)
 {
-  unsigned long long nrOfNAInts = 1 + nrOfElements / 32; // last bit is NA flag
-  unsigned long long totElements = nrOfElements + nrOfNAInts;
+  const unsigned long long nrOfNAInts = 1 + nrOfElements / 32; // last bit is NA flag
+  const unsigned long long totElements = nrOfElements + nrOfNAInts;
 
   std::unique_ptr<unsigned int[]> sizeMetaP(new unsigned int[totElements]);
   unsigned int* sizeMeta = sizeMetaP.get();
@@ -482,7 +501,7 @@ inline void ReadDataBlockCompressed_v6(istream& myfile, IStringColumn* blockRead
 
 
 void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned long long blockPos, unsigned long long startRow,
-                       unsigned long long vecLength, unsigned long long size)
+  unsigned long long vecLength, unsigned long long size)
 {
   // Jump to startRow size
   myfile.seekg(blockPos);
