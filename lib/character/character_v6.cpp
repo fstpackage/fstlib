@@ -24,12 +24,12 @@
 #include "character/character_v6.h"
 #include "interface/istringwriter.h"
 #include "interface/fstdefines.h"
+#include "interface/openmphelper.h"
 #include <compression/compressor.h>
 
 #include <fstream>
 #include <memory>
 #include <algorithm>
-#include "../../programs/fstcpp/typefactory.h"
 
 
 // #include <boost/unordered_map.hpp>
