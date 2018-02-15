@@ -32,7 +32,7 @@
 #include <algorithm>
 
 
-// #include <boost/unordered_map.hpp>
+//#include <boost/unordered_map.hpp>
 
 using namespace std;
 
@@ -169,17 +169,18 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   }
   else
   {
-    *is_compressed = (stringEncoding << 1) | 1; // set compression flag
+    //*is_compressed = (stringEncoding << 1) | 1; // set compression flag
+    *is_compressed = stringEncoding << 1;  // bit 1 and 2 used for character encoding
 
-    if (compression <= 50)  // low compression: linear mix of uncompressed and LZ4_SHUF
-    {
-      compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
-      stream_compressor = new StreamLinearCompressor(compress1, 2 * compression);
-    }
+    //if (compression <= 50)  // low compression: linear mix of uncompressed and LZ4_SHUF
+    //{
+    //  compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
+    //  stream_compressor = new StreamLinearCompressor(compress1, 2 * compression);
+    //}
 
-    compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
-    compress2 = new SingleCompressor(CompAlgo::ZSTD_SHUF4, 2 * (compression - 50));
-    stream_compressor = new StreamCompositeCompressor(compress1, compress2, 2 * (compression - 50));
+    //compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
+    //compress2 = new SingleCompressor(CompAlgo::ZSTD_SHUF4, 2 * (compression - 50));
+    //stream_compressor = new StreamCompositeCompressor(compress1, compress2, 2 * (compression - 50));
   }
 
   myfile.write(meta, meta_size); // write block offset index
@@ -288,11 +289,11 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
         const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
 
         // compress and determine compressed size
-        CompAlgo algo;
-        int compressed_size = stream_compressor->Compress(reinterpret_cast<char*>(&str_sizes_buf[str_sizes_counter]), cur_na_length * 4,
-          &cur_thread_buffer[tot_batch_size], algo, block_nr);
+        //CompAlgo algo;
+        //int compressed_size = stream_compressor->Compress(reinterpret_cast<char*>(&str_sizes_buf[str_sizes_counter]), cur_na_length * 4,
+        //  &cur_thread_buffer[tot_batch_size], algo, block_nr);
 
-        //memcpy(&cur_thread_buffer[tot_batch_size], &str_sizes_buf[str_sizes_counter], cur_na_length);
+        memcpy(&cur_thread_buffer[tot_batch_size], &str_sizes_buf[str_sizes_counter], cur_na_length);
 
         stringWriter->SerializeCharBlock(start_pos, cur_nr_of_elements, &str_sizes_buf[str_sizes_counter], block_buf);
         str_sizes_counter += str_sizes_block_size;
