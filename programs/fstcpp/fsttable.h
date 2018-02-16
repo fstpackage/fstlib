@@ -8,9 +8,11 @@
 #include <stdexcept>
 #include <memory>
 
-
 #include <interface/ifsttable.h>
 #include <interface/fstdefines.h>
+
+//#include "boost/unordered_map.hpp"
+
 
 
 class DestructableObject
@@ -490,6 +492,8 @@ public:
 
   int CalculateSizes(const int start_pos, const int nr_of_elements, unsigned int* cumu_sizes)
   {
+    //boost::unordered_map<std::string*, int> thread_map;
+
     int end_pos = start_pos + nr_of_elements;
     int cumu_size = 0;
     int element_count = 0;
@@ -498,6 +502,7 @@ public:
 
     for (int pos = start_pos; pos < end_pos; pos++)
     {
+      //thread_map.emplace(&(*strVecP)[pos])
       cumu_size += (*strVecP)[pos].size();
       cumu_sizes[element_count] = cumu_size;
       element_count++;
@@ -520,7 +525,7 @@ public:
     int element_count = 0;
     unsigned int cumu_size = 0;
 
-    const unsigned int nr_of_na_ints = 1 + nr_of_elements / 32; // add 1 bit for NA present flag
+    //const unsigned int nr_of_na_ints = 1 + nr_of_elements / 32; // add 1 bit for NA present flag
 
     for (int pos = start_pos; pos < end_pos; pos++)
     {
@@ -594,7 +599,7 @@ public:
 		{
 			const char* str = (*strVecP)[count].c_str();
 			pos = strSizes[++sizeCount];
-			strncpy(activeBuf + lastPos, str, pos - lastPos);
+			memcpy(activeBuf + lastPos, str, pos - lastPos);
 			lastPos = pos;
 		}
 

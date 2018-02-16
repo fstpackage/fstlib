@@ -30,9 +30,7 @@
 #include <fstream>
 #include <memory>
 #include <algorithm>
-
-
-//#include <boost/unordered_map.hpp>
+#include <cstring>
 
 using namespace std;
 
@@ -159,9 +157,9 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   const auto block_size_char = reinterpret_cast<unsigned int*>(&meta[4]);
   *block_size_char = BLOCKSIZE_CHAR; // number of elements in a single block
 
-  Compressor* compress1 = nullptr;
-  Compressor* compress2 = nullptr;
-  StreamCompressor* stream_compressor = nullptr;
+  //Compressor* compress1 = nullptr;
+  //Compressor* compress2 = nullptr;
+  //StreamCompressor* stream_compressor = nullptr;
 
   if (compression == 0)
   {
@@ -200,10 +198,10 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 
       // thread specific buffers and counters
       const int cur_thread = CurrentFstThread();
-      int tot_batch_size = 0;  // required compression buffer size for this batch
+      unsigned int tot_batch_size = 0;  // required compression buffer size for this batch
       const int start_block = job_nr * blocks_per_job;
       int str_sizes_counter = cur_thread * str_sizes_batch_size;
-      int max_block_size = 0;
+      unsigned int max_block_size = 0;
 
       int block_sizes[BATCH_SIZE_WRITE_CHAR];
 
@@ -216,7 +214,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
         const unsigned int na_int_length = 1 + cur_nr_of_elements / 32; // add 1 bit for NA present flag
         const unsigned int cur_na_length = 4 * (cur_nr_of_elements + na_int_length);
 
-        const int cur_block_size = stringWriter->CalculateSizes(block_nr * BLOCKSIZE_CHAR, cur_nr_of_elements,
+        const unsigned int cur_block_size = stringWriter->CalculateSizes(block_nr * BLOCKSIZE_CHAR, cur_nr_of_elements,
           &str_sizes_buf[str_sizes_counter]);
 
         block_sizes[block_nr - start_block] = cur_block_size + cur_na_length;
@@ -259,7 +257,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
           delete[] thread_buffer[cur_thread];
         }
 
-        const int new_buffer_size = static_cast<int>(tot_batch_size * 1.1);
+        const auto new_buffer_size = static_cast<int>(tot_batch_size * 1.1);
         max_batch_sizes[cur_thread] = new_buffer_size;  // 10 percent over allocation
 
         // allocate larger thread buffer
