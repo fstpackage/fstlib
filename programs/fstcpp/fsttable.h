@@ -10,6 +10,7 @@
 
 #include <interface/ifsttable.h>
 #include <interface/fstdefines.h>
+#include <unordered_map>
 
 //#include "boost/unordered_map.hpp"
 
@@ -492,7 +493,7 @@ public:
 
   int CalculateSizes(const int start_pos, const int nr_of_elements, unsigned int* cumu_sizes)
   {
-    //boost::unordered_map<std::string*, int> thread_map;
+    std::unordered_map<std::string, unsigned int> str_map;
 
     int end_pos = start_pos + nr_of_elements;
     int cumu_size = 0;
@@ -502,8 +503,11 @@ public:
 
     for (int pos = start_pos; pos < end_pos; pos++)
     {
-      //thread_map.emplace(&(*strVecP)[pos])
-      cumu_size += (*strVecP)[pos].size();
+      std::string str_element = (*strVecP)[pos];
+
+      str_map.insert_or_assign(str_element, pos);
+
+      cumu_size += str_element.size();
       cumu_sizes[element_count] = cumu_size;
       element_count++;
     }

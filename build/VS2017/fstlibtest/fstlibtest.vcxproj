@@ -34,6 +34,7 @@
     <ClCompile Include="..\..\..\tests\fstlibtests\previousversion.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\scaletest.cpp" />
     <ClCompile Include="..\..\..\tests\fstlibtests\SetThreads.cpp" />
+    <ClCompile Include="..\..\..\tests\fstlibtests\stack_map_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\tests\fstlibtests\ReadWriteTester.h" />

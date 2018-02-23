@@ -31,6 +31,7 @@
 #include <memory>
 #include <algorithm>
 #include <cstring>
+#include <unordered_map>
 
 using namespace std;
 

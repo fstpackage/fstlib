@@ -39,6 +39,7 @@
     <ClInclude Include="..\..\..\lib\interface\istringwriter.h" />
     <ClInclude Include="..\..\..\lib\interface\itypefactory.h" />
     <ClInclude Include="..\..\..\lib\interface\openmphelper.h" />
+    <ClInclude Include="..\..\..\lib\interface\stack_map.h" />
     <ClInclude Include="..\..\..\lib\logical\logical_v10.h" />
     <ClInclude Include="..\..\..\lib\LZ4\lz4.h" />
     <ClInclude Include="..\..\..\lib\LZ4\xxhash.h" />
@@ -75,6 +76,7 @@
     <ClCompile Include="..\..\..\lib\integer\integer_v8.cpp" />
     <ClCompile Include="..\..\..\lib\interface\fststore.cpp" />
     <ClCompile Include="..\..\..\lib\interface\openmphelper.cpp" />
+    <ClCompile Include="..\..\..\lib\interface\stack_map.cpp" />
     <ClCompile Include="..\..\..\lib\logical\logical_v10.cpp" />
     <ClCompile Include="..\..\..\lib\LZ4\lz4.cpp" />
     <ClCompile Include="..\..\..\lib\LZ4\xxhash.c" />
