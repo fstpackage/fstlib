@@ -35,7 +35,7 @@ stack_map::stack_map()
 void stack_map::clear()
 {
   // initialize bucket sizes to zero
-  memset(bucket_size, 0, 2 * STACK_MAP_NR_OF_BUCKETS);
+  memset(bucket_size_, 0, 2 * STACK_MAP_PRIMARY_BUCKETS);
   key_count = 0;
   overflow_count = STACK_MAP_PRIMARY_BUCKETS;
 }
@@ -46,80 +46,75 @@ unsigned short int &stack_map::size()
   return key_count;
 }
 
+unsigned short int* stack_map::bucket_counts()
+{
+  return bucket_size_;
+}
 
-unsigned int stack_map::emplace(unsigned long long key, unsigned short value)
+unsigned long long* stack_map::keys()
+{
+  return keys_;
+}
+
+unsigned short* stack_map::values()
+{
+  return values_;
+}
+
+
+unsigned short int stack_map::emplace(unsigned long long key, unsigned short value)
 {
   // determine bucket for the specified key
-  const unsigned int bucket = (key >> 4) & 127;
+  const unsigned int bucket = (key >> 4) & 4095;
 
-  const int buck_size = bucket_size[bucket];
+  const int buck_size = bucket_size_[bucket];
   int bucket_start = STACK_MAP_BUCKET_SIZE * bucket;
 
-  // search for existing key
+  // buvket is empty
   if (buck_size == 0)
   {
     // space left in bucket
-    bucket_size[bucket] = 1;
-    key_index[bucket_start] = key_count;
-    keys[key_count] = key;
-    values[key_count] = value;
+    bucket_size_[bucket] = 1;
+    key_index_[bucket_start] = key_count;
+    keys_[key_count] = key;
+    values_[key_count] = value;
     key_count++;
-    return key_count;
+    return value;
   }
 
-  int full_buckets   = (buck_size - 1) / STACK_MAP_BUCKET_INDEX_MAX;
-  int remaining_elems = 1 + (buck_size - 1) % STACK_MAP_BUCKET_INDEX_MAX;
+  //const int full_buckets   = (buck_size - 1) / STACK_MAP_BUCKET_INDEX_MAX;
+  //const int remaining_elems = 1 + (buck_size - 1) % STACK_MAP_BUCKET_INDEX_MAX;
 
   // iterate full buckets
-  for (int bucket_count = 0; bucket_count < full_buckets; bucket_count++)
+  for (int bucket_count = 0; bucket_count < buck_size - 1; bucket_count++)
   { 
-    const int to_element = bucket_start + STACK_MAP_BUCKET_INDEX_MAX;
-
     // iterate bucket elements
-    for (int element = bucket_start; element < to_element; element++)
-    {
-      const unsigned long long stored_key = keys[key_index[element]];
-      if (stored_key == key) return key_count;
-    }
+    const unsigned short int key_index = key_index_[bucket_start];
+    const unsigned long long stored_key = keys_[key_index];
+    if (stored_key == key) return values_[key_index];
 
-    bucket_start = key_index[to_element];
+    bucket_start = key_index_[bucket_start + 1];
   }
 
-  // iterate partially filled bucket
-  const int to_element = bucket_start + remaining_elems;
+  // test last key
+  const unsigned short int key_index = key_index_[bucket_start];
+  const unsigned long long stored_key = keys_[key_index];
 
-  for (int element = bucket_start; element < to_element; element++)
-  {
-    const unsigned long long stored_key = keys[key_index[element]];
-    if (stored_key == key) return buck_size;
-  }
+  // return registered value
+  if (stored_key == key) return values_[key_index];
 
-  // not found and bucket is full
-  if (remaining_elems == STACK_MAP_BUCKET_INDEX_MAX)
-  {
-    // set to new bucket
-    const unsigned short int overflow_bucket = overflow_count * STACK_MAP_BUCKET_SIZE;
-    overflow_count++;
-    key_index[to_element] = overflow_bucket;
+  // key not found, so add new key
+  const unsigned short int overflow_bucket = overflow_count * STACK_MAP_BUCKET_SIZE;
+  overflow_count++;
+  key_index_[bucket_start + 1] = overflow_bucket;
 
-    // add key to overflow bucket
-    bucket_size[bucket] = buck_size + 1;
-    key_index[overflow_bucket] = key_count;
-    keys[key_count] = key;
-    values[key_count] = value;
-    key_count++;
-    return key_count;
-  }
-
-
-  // space left in bucket
-  bucket_size[bucket] = buck_size + 1;
-  key_index[to_element] = key_count;
-  keys[key_count] = key;
-  values[key_count] = value;
+  // add key to overflow bucket
+  bucket_size_[bucket] = buck_size + 1;
+  key_index_[overflow_bucket] = key_count;
+  keys_[key_count] = key;
+  values_[key_count] = value;
   key_count++;
-
-  return buck_size;
+  return value;
 }
 
 

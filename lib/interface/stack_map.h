@@ -25,22 +25,23 @@ You can contact the author at:
 #ifndef STACK_MAP_H
 #define STACK_MAP_H
 
-#define STACK_MAP_BUCKET_SIZE      32   // double the average
-#define STACK_MAP_BUCKET_INDEX_MAX 31   // last element used for linked list
-#define STACK_MAP_PRIMARY_BUCKETS  128  // includes bucket overflow
-#define STACK_MAP_NR_OF_BUCKETS    194  // includes bucket overflow
+#define STACK_MAP_BUCKET_SIZE      2    // double the average
+//#define STACK_MAP_BUCKET_INDEX_MAX 1    // last element used for linked list
+#define STACK_MAP_PRIMARY_BUCKETS  4096 // includes bucket overflow
+#define STACK_MAP_NR_OF_BUCKETS    6143 // includes bucket overflow
 #define STACK_MAP_MAX_NR_ELEMENTS  2048 // remain within 32 kB stack
 
-#include <unordered_map>
+//#include <unordered_map>
 
 class stack_map
 {
+private:
   // buffers
-  unsigned long long keys[STACK_MAP_MAX_NR_ELEMENTS];
-  unsigned short int values[STACK_MAP_MAX_NR_ELEMENTS];
+  unsigned long long keys_[STACK_MAP_MAX_NR_ELEMENTS];
+  unsigned short int values_[STACK_MAP_MAX_NR_ELEMENTS];
 
-  unsigned short int key_index[STACK_MAP_NR_OF_BUCKETS * STACK_MAP_BUCKET_SIZE]{};
-  unsigned short int bucket_size[STACK_MAP_NR_OF_BUCKETS]{};
+  unsigned short int key_index_[STACK_MAP_NR_OF_BUCKETS * STACK_MAP_BUCKET_SIZE];
+  unsigned short int bucket_size_[STACK_MAP_PRIMARY_BUCKETS];
 
   // counters
   unsigned short int key_count;
@@ -53,7 +54,13 @@ public:
 
   unsigned short int &size();
 
-  unsigned int emplace(unsigned long long key, unsigned short int value);
+  unsigned short int* bucket_counts();
+
+  unsigned long long* keys();
+
+  unsigned short int* values();
+
+  unsigned short int emplace(unsigned long long key, unsigned short int value);
 };
 
 
