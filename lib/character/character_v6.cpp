@@ -426,27 +426,27 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 inline void ReadDataBlock_v6(istream& myfile, IStringColumn* blockReader, unsigned long long blockSize, unsigned long long nrOfElements,
   unsigned long long startElem, unsigned long long endElem, unsigned long long vecOffset)
 {
-  const unsigned long long nrOfNAInts = 1 + nrOfElements / 32; // last bit is NA flag
-  const unsigned long long totElements = nrOfElements + nrOfNAInts;
+  const unsigned long long nr_of_na_ints = 1 + nrOfElements / 32; // last bit is NA flag
+  const unsigned long long tot_elements = nrOfElements + nr_of_na_ints;
 
-  std::unique_ptr<unsigned int[]> sizeMetaP(new unsigned int[totElements]);
+  std::unique_ptr<unsigned int[]> sizeMetaP(new unsigned int[tot_elements]);
   unsigned int* sizeMeta = sizeMetaP.get();
 
-  myfile.read(reinterpret_cast<char*>(sizeMeta), totElements * 4); // read cumulative string lengths and NA bits
+  myfile.read(reinterpret_cast<char*>(sizeMeta), tot_elements * 4); // read cumulative string lengths and NA bits
 
-  unsigned int charDataSize = blockSize - totElements * 4;
+  const unsigned int char_data_size = blockSize - tot_elements * 4;
 
-  std::unique_ptr<char[]> bufP(new char[charDataSize]);
-  char* buf = bufP.get();
+  std::unique_ptr<char[]> buf_p(new char[char_data_size]);
+  char* buf = buf_p.get();
 
-  myfile.read(buf, charDataSize); // read string lengths
+  myfile.read(buf, char_data_size); // read string lengths
 
   blockReader->BufferToVec(nrOfElements, startElem, endElem, vecOffset, sizeMeta, buf);
 }
 
 
 inline void ReadDataBlockCompressed_v6(istream& myfile, IStringColumn* blockReader, unsigned long long blockSize, unsigned long long nrOfElements,
-  unsigned long long startElem, unsigned long long endElem, unsigned long long vecOffset,
+  unsigned long long start_elem, unsigned long long end_elem, unsigned long long vec_offset,
   unsigned int intBlockSize, Decompressor& decompressor, unsigned short int& algoInt, unsigned short int& algoChar)
 {
   unsigned long long nrOfNAInts = 1 + nrOfElements / 32; // NA metadata including overall NA bit
@@ -496,100 +496,127 @@ inline void ReadDataBlockCompressed_v6(istream& myfile, IStringColumn* blockRead
     decompressor.Decompress(algoChar, buf, charDataSizeUncompressed, bufCompressed, charDataSize);
   }
 
-  blockReader->BufferToVec(nrOfElements, startElem, endElem, vecOffset, sizeMeta, buf);
+  blockReader->BufferToVec(nrOfElements, start_elem, end_elem, vec_offset, sizeMeta, buf);
 }
 
 
-void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned long long blockPos, unsigned long long startRow,
-  unsigned long long vecLength, unsigned long long size)
+void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned long long block_pos, unsigned long long startRow,
+  const unsigned long long vec_length, unsigned long long size)
 {
   // Jump to startRow size
-  myfile.seekg(blockPos);
+  myfile.seekg(block_pos);
 
   // Read algorithm type and block size
   unsigned int meta[2];
   myfile.read(reinterpret_cast<char*>(meta), CHAR_HEADER_SIZE);
 
-  unsigned int compression = meta[0] & 1; // maximum 8 encodings
-  StringEncoding stringEncoding = static_cast<StringEncoding>(meta[0] >> 1 & 7); // at maximum 8 encodings
+  const unsigned int compression = meta[0] & 1; // maximum 8 encodings
+  const StringEncoding string_encoding = static_cast<StringEncoding>(meta[0] >> 1 & 7); // at maximum 8 encodings
 
-  unsigned long long blockSizeChar = static_cast<unsigned long long>(meta[1]);
-  unsigned long long totNrOfBlocks = (size - 1) / blockSizeChar; // total number of blocks minus 1
-  unsigned long long startBlock = startRow / blockSizeChar;
-  unsigned long long startOffset = startRow - (startBlock * blockSizeChar);
-  unsigned long long endBlock = (startRow + vecLength - 1) / blockSizeChar;
-  unsigned long long endOffset = (startRow + vecLength - 1) - endBlock * blockSizeChar;
-  unsigned long long nrOfBlocks = 1 + endBlock - startBlock; // total number of blocks to read
+  const unsigned long long block_size_char = static_cast<unsigned long long>(meta[1]);
+  const unsigned long long tot_nr_of_blocks = (size - 1) / block_size_char; // total number of blocks minus 1
+  const unsigned long long start_block = startRow / block_size_char;
+  const unsigned long long start_offset = startRow - (start_block * block_size_char);
+  const unsigned long long end_block = (startRow + vec_length - 1) / block_size_char;
+  const unsigned long long end_offset = (startRow + vec_length - 1) - end_block * block_size_char;
+  unsigned long long nr_of_blocks = 1 + end_block - start_block; // total number of blocks to read
 
   // Create result vector
-  blockReader->AllocateVec(vecLength);
-  blockReader->SetEncoding(stringEncoding);
+  blockReader->AllocateVec(vec_length);
+  blockReader->SetEncoding(string_encoding);
 
   // Vector data is uncompressed
   if (compression == 0)
   {
-    std::unique_ptr<unsigned long long[]> blockOffsetP(new unsigned long long[1 + nrOfBlocks]);
+    std::unique_ptr<unsigned long long[]> blockOffsetP(new unsigned long long[1 + nr_of_blocks]);
     unsigned long long* blockOffset = blockOffsetP.get(); // block positions
 
-    if (startBlock > 0) // include previous block offset
+    if (start_block > 0) // include previous block offset
     {
-      myfile.seekg(blockPos + CHAR_HEADER_SIZE + (startBlock - 1) * 8); // jump to correct block index
-      myfile.read(reinterpret_cast<char*>(blockOffset), (1 + nrOfBlocks) * 8);
+      myfile.seekg(block_pos + CHAR_HEADER_SIZE + (start_block - 1) * 8); // jump to correct block index
+      myfile.read(reinterpret_cast<char*>(blockOffset), (1 + nr_of_blocks) * 8);
     }
     else
     {
-      blockOffset[0] = CHAR_HEADER_SIZE + (totNrOfBlocks + 1) * 8;
-      myfile.read(reinterpret_cast<char*>(&blockOffset[1]), nrOfBlocks * 8);
+      blockOffset[0] = CHAR_HEADER_SIZE + (tot_nr_of_blocks + 1) * 8;
+      myfile.read(reinterpret_cast<char*>(&blockOffset[1]), nr_of_blocks * 8);
     }
 
 
     // Navigate to first selected data block
     unsigned long long offset = blockOffset[0];
-    myfile.seekg(blockPos + offset);
+    myfile.seekg(block_pos + offset);
 
-    unsigned long long endElem = blockSizeChar - 1;
-    unsigned long long nrOfElements = blockSizeChar;
+    unsigned long long endElem = block_size_char - 1;
+    unsigned long long nrOfElements = block_size_char;
 
-    if (startBlock == endBlock) // subset start and end of block
+    if (start_block == end_block) // subset start and end of block
     {
-      endElem = endOffset;
-      if (endBlock == totNrOfBlocks)
+      endElem = end_offset;
+      if (end_block == tot_nr_of_blocks)
       {
-        nrOfElements = size - totNrOfBlocks * blockSizeChar; // last block can have less elements
+        nrOfElements = size - tot_nr_of_blocks * block_size_char; // last block can have less elements
       }
     }
 
     // Read first block with offset
     unsigned long long blockSize = blockOffset[1] - offset; // size of data block
 
-    ReadDataBlock_v6(myfile, blockReader, blockSize, nrOfElements, startOffset, endElem, 0);
+    ReadDataBlock_v6(myfile, blockReader, blockSize, nrOfElements, start_offset, endElem, 0);
 
-    if (startBlock == endBlock) // subset start and end of block
+    if (start_block == end_block) // subset start and end of block
     {
       return;
     }
 
     offset = blockOffset[1];
-    unsigned long long vecPos = blockSizeChar - startOffset;
+    unsigned long long vecPos = block_size_char - start_offset;
 
-    if (endBlock == totNrOfBlocks)
+    if (end_block == tot_nr_of_blocks)
     {
-      nrOfElements = size - totNrOfBlocks * blockSizeChar; // last block can have less elements
+      nrOfElements = size - tot_nr_of_blocks * block_size_char; // last block can have less elements
     }
 
-    --nrOfBlocks; // iterate full blocks
-    for (unsigned long long block = 1; block < nrOfBlocks; ++block)
+
+    --nr_of_blocks; // iterate full blocks
+    for (unsigned long long block = 1; block < nr_of_blocks; ++block)
     {
       unsigned long long newPos = blockOffset[block + 1];
 
-      ReadDataBlock_v6(myfile, blockReader, newPos - offset, blockSizeChar, 0, blockSizeChar - 1, vecPos);
 
-      vecPos += blockSizeChar;
+
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+      unsigned long long blockSize = newPos - offset;
+      unsigned long long nrOfElements = block_size_char;
+      unsigned long long startElem = 0;
+      unsigned long long endElem = block_size_char - 1;
+      unsigned long long vecOffset = vecPos;
+      
+        const unsigned long long nrOfNAInts = 1 + nrOfElements / 32; // last bit is NA flag
+        const unsigned long long totElements = nrOfElements + nrOfNAInts;
+
+        std::unique_ptr<unsigned int[]> sizeMetaP(new unsigned int[totElements]);
+        unsigned int* sizeMeta = sizeMetaP.get();
+
+        myfile.read(reinterpret_cast<char*>(sizeMeta), totElements * 4); // read cumulative string lengths and NA bits
+
+        unsigned int charDataSize = blockSize - totElements * 4;
+
+        std::unique_ptr<char[]> bufP(new char[charDataSize]);
+        char* buf = bufP.get();
+
+        myfile.read(buf, charDataSize); // read string lengths
+
+        blockReader->BufferToVec(nrOfElements, startElem, endElem, vecOffset, sizeMeta, buf);
+      ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+      vecPos += block_size_char;
       offset = newPos;
     }
 
-    unsigned long long newPos = blockOffset[nrOfBlocks + 1];
-    ReadDataBlock_v6(myfile, blockReader, newPos - offset, nrOfElements, 0, endOffset, vecPos);
+    unsigned long long newPos = blockOffset[nr_of_blocks + 1];
+    ReadDataBlock_v6(myfile, blockReader, newPos - offset, nrOfElements, 0, end_offset, vecPos);
 
     return;
   }
@@ -597,22 +624,22 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
 
   // Vector data is compressed
 
-  unsigned int bufLength = (nrOfBlocks + 1) * CHAR_INDEX_SIZE; // 1 long and 2 unsigned int per block
+  unsigned int bufLength = (nr_of_blocks + 1) * CHAR_INDEX_SIZE; // 1 long and 2 unsigned int per block
 
   // add extra first element for convenience
   std::unique_ptr<char[]> blockInfoP = std::unique_ptr<char[]>(new char[bufLength + CHAR_INDEX_SIZE]);
   char* blockInfo = blockInfoP.get();
 
-  if (startBlock > 0) // include previous block offset
+  if (start_block > 0) // include previous block offset
   {
-    myfile.seekg(blockPos + CHAR_HEADER_SIZE + (startBlock - 1) * CHAR_INDEX_SIZE); // jump to correct block index
-    myfile.read(blockInfo, (nrOfBlocks + 1) * CHAR_INDEX_SIZE);
+    myfile.seekg(block_pos + CHAR_HEADER_SIZE + (start_block - 1) * CHAR_INDEX_SIZE); // jump to correct block index
+    myfile.read(blockInfo, (nr_of_blocks + 1) * CHAR_INDEX_SIZE);
   }
   else
   {
     unsigned long long* firstBlock = reinterpret_cast<unsigned long long*>(blockInfo);
-    *firstBlock = CHAR_HEADER_SIZE + (totNrOfBlocks + 1) * CHAR_INDEX_SIZE; // offset of first data block
-    myfile.read(&blockInfo[CHAR_INDEX_SIZE], nrOfBlocks * CHAR_INDEX_SIZE);
+    *firstBlock = CHAR_HEADER_SIZE + (tot_nr_of_blocks + 1) * CHAR_INDEX_SIZE; // offset of first data block
+    myfile.read(&blockInfo[CHAR_INDEX_SIZE], nr_of_blocks * CHAR_INDEX_SIZE);
   }
 
   // Get block meta data
@@ -625,30 +652,30 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
 
   // move to first data block
 
-  myfile.seekg(blockPos + *offset);
+  myfile.seekg(block_pos + *offset);
 
-  unsigned long long endElem = blockSizeChar - 1;
-  unsigned long long nrOfElements = blockSizeChar;
+  unsigned long long endElem = block_size_char - 1;
+  unsigned long long nrOfElements = block_size_char;
 
   Decompressor decompressor; // uncompresses all available algorithms
 
-  if (startBlock == endBlock) // subset start and end of block
+  if (start_block == end_block) // subset start and end of block
   {
-    endElem = endOffset;
-    if (endBlock == totNrOfBlocks)
+    endElem = end_offset;
+    if (end_block == tot_nr_of_blocks)
     {
-      nrOfElements = size - totNrOfBlocks * blockSizeChar; // last block can have less elements
+      nrOfElements = size - tot_nr_of_blocks * block_size_char; // last block can have less elements
     }
   }
 
   // Read first block with offset
   unsigned long long blockSize = *curBlockPos - *offset; // size of data block
 
-  ReadDataBlockCompressed_v6(myfile, blockReader, blockSize, nrOfElements, startOffset, endElem, 0, *intBufSize,
+  ReadDataBlockCompressed_v6(myfile, blockReader, blockSize, nrOfElements, start_offset, endElem, 0, *intBufSize,
     decompressor, *algoInt, *algoChar);
 
 
-  if (startBlock == endBlock) // subset start and end of block
+  if (start_block == end_block) // subset start and end of block
   {
     return;
   }
@@ -657,26 +684,26 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
 
   offset = curBlockPos;
 
-  unsigned long long vecPos = blockSizeChar - startOffset;
+  unsigned long long vecPos = block_size_char - start_offset;
 
-  if (endBlock == totNrOfBlocks)
+  if (end_block == tot_nr_of_blocks)
   {
-    nrOfElements = size - totNrOfBlocks * blockSizeChar; // last block can have less elements
+    nrOfElements = size - tot_nr_of_blocks * block_size_char; // last block can have less elements
   }
 
-  --nrOfBlocks; // iterate all but last block
+  --nr_of_blocks; // iterate all but last block
   blockP += CHAR_INDEX_SIZE; // move to next index element
-  for (unsigned int block = 1; block < nrOfBlocks; ++block)
+  for (unsigned int block = 1; block < nr_of_blocks; ++block)
   {
     curBlockPos = reinterpret_cast<unsigned long long*>(blockP);
     algoInt = reinterpret_cast<unsigned short int*>(blockP + 8);
     algoChar = reinterpret_cast<unsigned short int*>(blockP + 10);
     intBufSize = reinterpret_cast<int*>(blockP + 12);
 
-    ReadDataBlockCompressed_v6(myfile, blockReader, *curBlockPos - *offset, blockSizeChar, 0, blockSizeChar - 1, vecPos, *intBufSize,
+    ReadDataBlockCompressed_v6(myfile, blockReader, *curBlockPos - *offset, block_size_char, 0, block_size_char - 1, vecPos, *intBufSize,
       decompressor, *algoInt, *algoChar);
 
-    vecPos += blockSizeChar;
+    vecPos += block_size_char;
     offset = curBlockPos;
     blockP += CHAR_INDEX_SIZE; // move to next index element
   }
@@ -686,6 +713,6 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
   algoChar = reinterpret_cast<unsigned short int*>(blockP + 10);
   intBufSize = reinterpret_cast<int*>(blockP + 12);
 
-  ReadDataBlockCompressed_v6(myfile, blockReader, *curBlockPos - *offset, nrOfElements, 0, endOffset, vecPos, *intBufSize,
+  ReadDataBlockCompressed_v6(myfile, blockReader, *curBlockPos - *offset, nrOfElements, 0, end_offset, vecPos, *intBufSize,
     decompressor, *algoInt, *algoChar);
 }
