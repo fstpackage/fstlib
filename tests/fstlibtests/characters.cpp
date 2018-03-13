@@ -4,6 +4,7 @@
 
 #include <interface/fststore.h>
 #include <interface/fstdefines.h>
+#include <interface/openmphelper.h>
 
 #include <fsttable.h>
 #include <IntegerMethods.h>
@@ -49,7 +50,7 @@ protected:
 };
 
 
-TEST_F(CharacterTest, NaLevels)
+TEST_F(CharacterTest, MultipleBlocks)
 {
 	int nrOfRows = 7025;
 	FstTable fstTable(nrOfRows);
@@ -71,4 +72,33 @@ TEST_F(CharacterTest, NaLevels)
   fstTable.SetStringColumn(strColumn, 0);
 
 	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+}
+
+TEST_F(CharacterTest, SingleThreaded)
+{
+  ThreadsFst(1);
+
+  int nr_of_threads = ThreadsFst(1);
+  EXPECT_EQ(nr_of_threads, 1);
+
+  int nrOfRows = 7025;
+  FstTable fstTable(nrOfRows);
+  fstTable.InitTable(1, nrOfRows);
+
+  vector<std::string> colNames{ "Char" };
+
+  fstTable.SetColumnNames(colNames);
+
+  // Add character column
+  StringColumn* strColumn = new StringColumn();
+  strColumn->AllocateVec(nrOfRows);
+
+  for (int elem = 0; elem < nrOfRows; elem++)
+  {
+    (*(strColumn->StrVector()->StrVec()))[elem] = "bla";
+  }
+
+  fstTable.SetStringColumn(strColumn, 0);
+
+  ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
 }

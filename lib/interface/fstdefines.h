@@ -28,12 +28,15 @@
 
 // Format related defines
 
-// version of fst format
+// Version of fst format (even versions are used for dev builds)
+// Currently fstlib is backwards compatible but not forwards compatible.
+// That means that FST_VERSION_MAJOR x of the library can only be used to read
+// files that were generated using FST_VERSION_MAJOR <= x. Higher FST_VERSION_MINOR
+// but equal FST_VERSION_MAJOR does not break forward compatibility.
 #define FST_VERSION_MAJOR    0                  // for breaking interface changes
-#define FST_VERSION_MINOR    0                  // for new (non-breaking) interface capabilities
-#define FST_VERSION_RELEASE  1                  // for tweaks, bug-fixes, or development 
+#define FST_VERSION_MINOR    1                  // for tweaks, bug-fixes, or development
 
-#define FST_VERSION          (FST_VERSION_MAJOR * 64 * 64 + FST_VERSION_MINOR * 64 + FST_VERSION_RELEASE)
+#define FST_VERSION          (FST_VERSION_MAJOR * 64 + FST_VERSION_MINOR)
 
 #define FST_MAGIC_NUMBER     0x50414150         // magic number and signature of the fst format
 #define TABLE_META_SIZE      48                 // size of table meta-data block
@@ -95,7 +98,7 @@
 #define FSTERROR_NO_DATA             "The dataset contains no data"
 #define FSTERROR_ERROR_OPEN_WRITE    "There was an error creating the file, please check path"
 #define FSTERROR_ERROR_OPEN_READ     "There was an error opening the file, it seems to be incomplete or damaged."
-#define FSTERROR_UPDATE_FST          "Incompatible fst file: file was created by a newer version of fst"
+#define FSTERROR_UPDATE_FST          "Incompatible fst file: file was created by a newer major version of fst"
 #define FSTERROR_COMP_DATA_HASH      "Incorrect input vector: data block hash does not match."
 #define FSTERROR_COMP_STREAM         "An error was detected in the compressed data stream."
 #define FSTERROR_COMP_SIZE           "Compressed data vector has incorrect size."

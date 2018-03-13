@@ -577,13 +577,64 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
       nrOfElements = size - tot_nr_of_blocks * block_size_char; // last block can have less elements
     }
 
-
     --nr_of_blocks; // iterate full blocks
+
+    // Parallel reads of charcter columns have a specific pattern. The master threads is fully
+    // utilized to create new string elements. These allocations are the main bottleneck in speed-ups
+    // for deserialization of character columns. Data is loaded, decompressed and processed on the
+    // other threads. The whole setup is deigned such that the main thread can do it's allocations
+    // with the highest possible speed.
+    // TODO: use custom stack based unordered map to speed up allocations by smart copying
+
+    //                  thread number
+    //       |   0    |   1    |   2    |   3    |
+    // phase |        |        |        |        |
+    // 0     |* Idle *|        |        |        |
+    // 1     | Create |*  L1  *|        |        |
+    // 2     | Create |   P    |*  L1  *|        |
+    // 3     | Create |   P    |   P    |*  L1  *|
+    // 4     |* Idle *|   P    |   P    |   P    |
+    // 5     |  Alloc |*  L2  *|   P    |   P    |
+    // 6     |  Alloc |   P    |*  L2  *|   P    |
+    // 7     |  Alloc |   P    |   P    |*  L2  *|
+    // 8     |* Idle *|   P    |   P    |   P    |
+    // 9     |  Alloc |*  L1  *|   P    |   P    |
+    // 10    |   ..   |  ..    |  ..    |  ..    |
+    // 160   |* Idle *|   P    |   P    |   P    |
+    // 161   |  Alloc |*  L1  *|   P    |   P    |
+    // 162   |  Alloc |   P    |* idle *|   P    |
+    // 163   |  Alloc |   P    |  idle  |* idle *|
+    // 164   |* Idle *|   P    |  idle  |  idle  |
+    // 165   |  Alloc |* idle *|   P    |   P    |
+    // 166   |  Alloc |  idle  |* idle *|   P    |
+    // 167   |  Alloc |  idle  |  idle  |* idle *|
+
+    // determine number of blocks per job and number of jobs
+    const int nr_of_reader_threads = GetFstThreads() - 1;
+
+    // use single threaded implementation
+    if (nr_of_reader_threads == 0)
+    {
+      for (unsigned long long block = 1; block < nr_of_blocks; ++block)
+      {
+        unsigned long long newPos = blockOffset[block + 1];
+
+        ReadDataBlock_v6(myfile, blockReader, newPos - offset, block_size_char, 0, block_size_char - 1, vecPos);
+
+        vecPos += block_size_char;
+        offset = newPos;
+      }
+
+      unsigned long long newPos = blockOffset[nr_of_blocks + 1];
+      ReadDataBlock_v6(myfile, blockReader, newPos - offset, nrOfElements, 0, end_offset, vecPos);
+
+      return;
+    }
+
+    // use multi-threaded implementation
     for (unsigned long long block = 1; block < nr_of_blocks; ++block)
     {
       unsigned long long newPos = blockOffset[block + 1];
-
-
 
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////
       unsigned long long blockSize = newPos - offset;
@@ -607,9 +658,9 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
 
         myfile.read(buf, charDataSize); // read string lengths
 
+        // this call is only allowed on the master thread
         blockReader->BufferToVec(nrOfElements, startElem, endElem, vecOffset, sizeMeta, buf);
       ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 
       vecPos += block_size_char;
       offset = newPos;
