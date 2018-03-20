@@ -665,7 +665,7 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
     unsigned long long buffer_offset = 0;
     for (unsigned long long read_buffer_id = 0; read_buffer_id < 2 * nr_of_reader_threads; read_buffer_id++)
     {
-      tot_buffer_size += read_buffer_sizes[read_buffer_id];
+      tot_buffer_size += CACHE_LINE_SIZE * ((read_buffer_sizes[read_buffer_id] + CACHE_LINE_SIZE - 1) / CACHE_LINE_SIZE);  // avoid false sharing
       read_buffer_sizes[read_buffer_id] = buffer_offset;  // cumulative size
       buffer_offset = tot_buffer_size;
     }
@@ -721,6 +721,92 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
           else
           {
             // set vector elements
+
+            // use buffers from two cycles before
+            const unsigned long long start_buf_id = (cycle_nr % 2) * nr_of_reader_threads;
+
+            // process a range of job results
+            const unsigned long long start_job = (cycle_nr - 2) * nr_of_reader_threads;
+            const unsigned long long end_job = start_job + nr_of_reader_threads, nr_of_read_jobs;
+
+            unsigned int str_sizes[BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR];  // default size for full block
+
+            if (end_job < nr_of_read_jobs)
+            {
+              for (int read_job_id = start_job; read_job_id < end_job; read_job_id++)
+              {
+                // get buffer
+                const unsigned long long page_id = read_job_id % (2 * nr_of_reader_threads);
+                const unsigned long long page_offset = read_buffer_sizes[page_id];  // thread buffer offset
+                char* page_buffer = &read_buffer[page_offset];  // each thread has it's own two buffers
+
+                unsigned long long start_block = read_job_id * blocks_per_read_job + 1;
+                unsigned long long end_block = start_block + blocks_per_read_job;
+
+                for (unsigned long long block_id = start_block; block_id < end_block; block_id++)
+                {
+                  // copy buffer to stack memory
+                  unsigned long long block_size = blockOffset[block_id + 1] - blockOffset[block_id];
+                  const unsigned int byte_size = 4 * (BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR);
+                  memcpy(str_sizes, page_buffer, byte_size);  // copy to stack buffer
+
+                  //const unsigned int char_data_size = blockSize - byte_size;
+                  char* buf = &page_buffer[byte_size];
+
+                  blockReader->BufferToVec(block_size_char, 0, block_size_char - 1, vecPos, str_sizes, buf);
+                  vecPos += block_size_char;
+                }
+              }
+            }
+            else  // possible partial last block included
+            {
+              unsigned int str_sizes[BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR];  // default size for full block
+
+              for (int read_job_id = start_job; read_job_id < nr_of_read_jobs; read_job_id++)  // finish last read jobs
+              {
+                // get buffer
+                const unsigned long long page_id = read_job_id % (2 * nr_of_reader_threads);
+                const unsigned long long page_offset = read_buffer_sizes[page_id];  // thread buffer offset
+                char* page_buffer = &read_buffer[page_offset];  // each thread has it's own two buffers
+
+                unsigned long long start_block = read_job_id * blocks_per_read_job + 1;
+                unsigned long long end_block = std::min(start_block + blocks_per_read_job, nr_of_blocks);  // don't include last block
+
+                for (unsigned long long block_id = start_block; block_id < end_block; block_id++)
+                {
+                  // copy buffer to stack memory
+                  unsigned long long block_size = blockOffset[block_id + 1] - blockOffset[block_id];
+                  const unsigned int byte_size = 4 * (BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR);
+                  memcpy(str_sizes, page_buffer, byte_size);  // copy to stack buffer
+
+                  //const unsigned int char_data_size = blockSize - byte_size;
+                  char* buf = &page_buffer[byte_size];
+
+                  blockReader->BufferToVec(block_size_char, 0, block_size_char - 1, vecPos, str_sizes, buf);
+                  vecPos += block_size_char;
+                }
+
+                // last possibly partial block
+                if (end_block == nr_of_blocks)
+                {
+                  // copy buffer to stack memory
+                  unsigned long long block_size = blockOffset[end_block + 1] - blockOffset[end_block];
+
+                  const unsigned long long nr_of_na_ints = 1 + nrOfElements / 32; // last bit is NA flag
+                  const unsigned long long tot_elements = nrOfElements + nr_of_na_ints;
+
+                  const unsigned int byte_size = 4 * (BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR);
+                  memcpy(str_sizes, page_buffer, byte_size);  // copy to stack buffer
+
+                  //const unsigned int char_data_size = blockSize - byte_size;
+                  char* buf = &page_buffer[byte_size];
+
+                  blockReader->BufferToVec(nrOfElements, 0, nrOfElements - 1, vecPos, str_sizes, buf);
+                  vecPos += block_size_char;
+                }
+              }
+            }
+
           }
         }
         else  // reader thread processes buffer data read in previous cycle
@@ -746,9 +832,9 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
       }
     }
 
-    // process the last (possibly partial) block
-    unsigned long long last_block_size = blockOffset[nr_of_blocks + 2] - blockOffset[nr_of_blocks + 1];
-    ReadDataBlock_v6(myfile, blockReader, last_block_size, nrOfElements, 0, end_offset, vecPos);
+    // read and process the last (possibly partial) block
+    //unsigned long long last_block_size = blockOffset[nr_of_blocks + 2] - blockOffset[nr_of_blocks + 1];
+    //ReadDataBlock_v6(myfile, blockReader, last_block_size, nrOfElements, 0, end_offset, vecPos);
 
     return;
   }

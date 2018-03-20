@@ -87,6 +87,9 @@
 #define BLOCKSIZE_INT					          (4096 * CACHEFACTOR)			    // number of integers in default compression block
 #define BLOCKSIZE_BYTE					        (16384 * CACHEFACTOR)			    // number of bytes in default compression block
 #define BLOCKSIZE_CHAR					        2048                			    // number of bytes in default compression block
+#define BLOCKSIZE_CHAR_NA_INTS	        65                  			    // number of bytes in default compression block
+
+#define CACHE_LINE_SIZE                 64                           // default size of cache line of a modern Intel processors
 
 // fst specific errors
 #define FSTERROR_NOT_IMPLEMENTED     "Feature not implemented yet"
