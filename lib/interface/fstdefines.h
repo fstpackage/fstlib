@@ -61,6 +61,8 @@
 
 // Format defines for character column
 #define BATCH_SIZE_WRITE_CHAR           25
+#define BATCH_SIZE_READ_CHAR            25
+#define BATCH_SIZE_READ_CHAR_ULL        3ULL
 #define STD_MAX_CHAR_THREADS            48
 #define CHAR_HEADER_SIZE                8       // meta data header size
 

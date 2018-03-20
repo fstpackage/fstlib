@@ -52,7 +52,9 @@ protected:
 
 TEST_F(CharacterTest, MultipleBlocks)
 {
-	int nrOfRows = 7025;
+  ThreadsFst(4);
+
+  int nrOfRows = 30000;
 	FstTable fstTable(nrOfRows);
 	fstTable.InitTable(1, nrOfRows);
 

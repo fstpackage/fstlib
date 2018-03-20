@@ -480,6 +480,7 @@ inline void ReadDataBlockCompressed_v6(istream& myfile, IStringColumn* blockRead
   // Read and uncompress string vector data, use stack if possible here !!!!!
   unsigned int charDataSize = blockSize - intBlockSize - nrOfNAInts * 4;
 
+  // expensive allocation per block!
   std::unique_ptr<char[]> bufP(new char[charDataSizeUncompressed]);
   char* buf = bufP.get();
 
@@ -500,6 +501,15 @@ inline void ReadDataBlockCompressed_v6(istream& myfile, IStringColumn* blockRead
 }
 
 
+/**
+ * \brief 
+ * \param myfile open file stream to a valid fst file
+ * \param blockReader interface to an in-memory string vector
+ * \param block_pos file offset to the start of string column data in myfile
+ * \param startRow zero-based offset to the required starting row
+ * \param vec_length number of vector elements to read
+ * \param size total on-disk size of the string vector
+ */
 void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned long long block_pos, unsigned long long startRow,
   const unsigned long long vec_length, unsigned long long size)
 {
@@ -513,15 +523,15 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
   const unsigned int compression = meta[0] & 1; // maximum 8 encodings
   const StringEncoding string_encoding = static_cast<StringEncoding>(meta[0] >> 1 & 7); // at maximum 8 encodings
 
-  const unsigned long long block_size_char = static_cast<unsigned long long>(meta[1]);
-  const unsigned long long tot_nr_of_blocks = (size - 1) / block_size_char; // total number of blocks minus 1
-  const unsigned long long start_block = startRow / block_size_char;
-  const unsigned long long start_offset = startRow - (start_block * block_size_char);
-  const unsigned long long end_block = (startRow + vec_length - 1) / block_size_char;
-  const unsigned long long end_offset = (startRow + vec_length - 1) - end_block * block_size_char;
-  unsigned long long nr_of_blocks = 1 + end_block - start_block; // total number of blocks to read
+  const unsigned long long block_size_char = static_cast<unsigned long long>(meta[1]);  // number of elements in a block
+  const unsigned long long tot_nr_of_blocks = (size - 1) / block_size_char; // total number of blocks on disk minus 1
+  const unsigned long long start_block = startRow / block_size_char;  // zero-based block number containing first required element
+  const unsigned long long start_offset = startRow - (start_block * block_size_char);  // zero-based offset of first required element in start_block
+  const unsigned long long end_block = (startRow + vec_length - 1) / block_size_char;  // zero-based number of block containing last required lement
+  const unsigned long long end_offset = (startRow + vec_length - 1) - end_block * block_size_char;  // zero-based offset of last required element in end_block
+  unsigned long long nr_of_blocks = 1 + end_block - start_block; // total number of blocks to read from file (including partial)
 
-  // Create result vector
+  // Allocate result vector
   blockReader->AllocateVec(vec_length);
   blockReader->SetEncoding(string_encoding);
 
@@ -561,7 +571,6 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
 
     // Read first block with offset
     unsigned long long blockSize = blockOffset[1] - offset; // size of data block
-
     ReadDataBlock_v6(myfile, blockReader, blockSize, nrOfElements, start_offset, endElem, 0);
 
     if (start_block == end_block) // subset start and end of block
@@ -577,97 +586,169 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
       nrOfElements = size - tot_nr_of_blocks * block_size_char; // last block can have less elements
     }
 
-    --nr_of_blocks; // iterate full blocks
+    --nr_of_blocks; // number of blocks excluding last possibly partial block
 
-    // Parallel reads of charcter columns have a specific pattern. The master threads is fully
+    // Parallel reads of character columns have a specific pattern. The master threads is fully
     // utilized to create new string elements. These allocations are the main bottleneck in speed-ups
     // for deserialization of character columns. Data is loaded, decompressed and processed on the
-    // other threads. The whole setup is deigned such that the main thread can do it's allocations
+    // other threads. The whole setup is designed in such a way that the main thread can do it's allocations
     // with the highest possible speed.
     // TODO: use custom stack based unordered map to speed up allocations by smart copying
 
-    //                  thread number
-    //       |   0    |   1    |   2    |   3    |
-    // phase |        |        |        |        |
-    // 0     |* Idle *|        |        |        |
-    // 1     | Create |*  L1  *|        |        |
-    // 2     | Create |   P    |*  L1  *|        |
-    // 3     | Create |   P    |   P    |*  L1  *|
-    // 4     |* Idle *|   P    |   P    |   P    |
-    // 5     |  Alloc |*  L2  *|   P    |   P    |
-    // 6     |  Alloc |   P    |*  L2  *|   P    |
-    // 7     |  Alloc |   P    |   P    |*  L2  *|
-    // 8     |* Idle *|   P    |   P    |   P    |
-    // 9     |  Alloc |*  L1  *|   P    |   P    |
-    // 10    |   ..   |  ..    |  ..    |  ..    |
-    // 160   |* Idle *|   P    |   P    |   P    |
-    // 161   |  Alloc |*  L1  *|   P    |   P    |
-    // 162   |  Alloc |   P    |* idle *|   P    |
-    // 163   |  Alloc |   P    |  idle  |* idle *|
-    // 164   |* Idle *|   P    |  idle  |  idle  |
-    // 165   |  Alloc |* idle *|   P    |   P    |
-    // 166   |  Alloc |  idle  |* idle *|   P    |
-    // 167   |  Alloc |  idle  |  idle  |* idle *|
-
     // determine number of blocks per job and number of jobs
-    const int nr_of_reader_threads = GetFstThreads() - 1;
+    unsigned long long nr_of_reader_threads = GetFstThreads() - 1;
 
     // use single threaded implementation
-    if (nr_of_reader_threads == 0)
+    if (nr_of_reader_threads == 0 | nr_of_blocks < 2)
     {
       for (unsigned long long block = 1; block < nr_of_blocks; ++block)
       {
-        unsigned long long newPos = blockOffset[block + 1];
+        const unsigned long long new_pos = blockOffset[block + 1];
 
-        ReadDataBlock_v6(myfile, blockReader, newPos - offset, block_size_char, 0, block_size_char - 1, vecPos);
+        ReadDataBlock_v6(myfile, blockReader, new_pos - offset, block_size_char, 0, block_size_char - 1, vecPos);
 
         vecPos += block_size_char;
-        offset = newPos;
+        offset = new_pos;
       }
 
-      unsigned long long newPos = blockOffset[nr_of_blocks + 1];
-      ReadDataBlock_v6(myfile, blockReader, newPos - offset, nrOfElements, 0, end_offset, vecPos);
+      // last possibly partial block
+      const unsigned long long new_pos = blockOffset[nr_of_blocks + 1];
+      ReadDataBlock_v6(myfile, blockReader, new_pos - offset, nrOfElements, 0, end_offset, vecPos);
 
       return;
     }
 
-    // use multi-threaded implementation
-    for (unsigned long long block = 1; block < nr_of_blocks; ++block)
+    // use multi-threaded implementation for all blocks excluding last
+
+    --nr_of_blocks;  // number of full blocks (at minimum one) left to read (first block is already processed)
+
+    // the number of reader threads determines the number of block batches
+    const unsigned long long blocks_per_read_job = std::min(1 + (nr_of_blocks - 1) / nr_of_reader_threads, BATCH_SIZE_READ_CHAR_ULL);
+    const unsigned long long nr_of_read_jobs = 1 + (nr_of_blocks - 1) / blocks_per_read_job;  // including possibly partial last jobs
+    nr_of_reader_threads = std::min(nr_of_reader_threads, nr_of_read_jobs);  // we require at most nr_of_reader_jobs reader threads
+
+    // Calculate the required buffer size for each thread.
+    // The algorithm uses a double buffered strategy (each threads uses two separate buffers).
+    unsigned long long read_buffer_sizes[2 * STD_MAX_CHAR_THREADS - 2];  // master thread doesn't need a buffer
+
+    // reset max buffer sizes
+    for (unsigned long long read_buffer_id = 0; read_buffer_id < 2 * nr_of_reader_threads; read_buffer_id++)
     {
-      unsigned long long newPos = blockOffset[block + 1];
-
-      ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-      unsigned long long blockSize = newPos - offset;
-      unsigned long long nrOfElements = block_size_char;
-      unsigned long long startElem = 0;
-      unsigned long long endElem = block_size_char - 1;
-      unsigned long long vecOffset = vecPos;
-      
-        const unsigned long long nrOfNAInts = 1 + nrOfElements / 32; // last bit is NA flag
-        const unsigned long long totElements = nrOfElements + nrOfNAInts;
-
-        std::unique_ptr<unsigned int[]> sizeMetaP(new unsigned int[totElements]);
-        unsigned int* sizeMeta = sizeMetaP.get();
-
-        myfile.read(reinterpret_cast<char*>(sizeMeta), totElements * 4); // read cumulative string lengths and NA bits
-
-        unsigned int charDataSize = blockSize - totElements * 4;
-
-        std::unique_ptr<char[]> bufP(new char[charDataSize]);
-        char* buf = bufP.get();
-
-        myfile.read(buf, charDataSize); // read string lengths
-
-        // this call is only allowed on the master thread
-        blockReader->BufferToVec(nrOfElements, startElem, endElem, vecOffset, sizeMeta, buf);
-      ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-      vecPos += block_size_char;
-      offset = newPos;
+      read_buffer_sizes[read_buffer_id] = 0;
     }
 
-    unsigned long long newPos = blockOffset[nr_of_blocks + 1];
-    ReadDataBlock_v6(myfile, blockReader, newPos - offset, nrOfElements, 0, end_offset, vecPos);
+    // determine largest combined read job size for all threads
+    unsigned long long prev_offset = offset;
+
+    // determine read buffer size per read_job (excluding last)
+    for (unsigned long long read_job = 0; read_job < nr_of_read_jobs - 1; read_job++)
+    {
+      const unsigned long long block_end = 1 + (read_job + 1) * blocks_per_read_job;  // block 0 already processed
+      offset = blockOffset[block_end + 1];
+
+      const unsigned long long read_job_buffer_size = offset - prev_offset;
+      const unsigned long long buffer_index = read_job % (2 * nr_of_reader_threads);
+      read_buffer_sizes[buffer_index] = std::max(read_job_buffer_size, read_buffer_sizes[buffer_index]);
+
+      prev_offset = offset;
+    }
+
+    // last read job
+    offset = blockOffset[nr_of_blocks + 2];  // offset to last block
+
+    const unsigned long long read_job_buffer_size = offset - prev_offset;
+    const unsigned long long buffer_index = (nr_of_read_jobs - 1) % (2 * nr_of_reader_threads);
+    read_buffer_sizes[buffer_index] = std::max(read_job_buffer_size, read_buffer_sizes[buffer_index]);
+
+    // calculate size of single large buffer memory
+    unsigned long long tot_buffer_size = 0;
+    unsigned long long buffer_offset = 0;
+    for (unsigned long long read_buffer_id = 0; read_buffer_id < 2 * nr_of_reader_threads; read_buffer_id++)
+    {
+      tot_buffer_size += read_buffer_sizes[read_buffer_id];
+      read_buffer_sizes[read_buffer_id] = buffer_offset;  // cumulative size
+      buffer_offset = tot_buffer_size;
+    }
+
+    // allocate read buffer
+    std::unique_ptr<char[]> read_buffer_p(new char[tot_buffer_size]);
+    char* read_buffer = read_buffer_p.get();
+
+
+    // The thread pattern works in cycles. In each cycle, all reader threads execute their read job. The main thread
+    // processes the buffer data from the previous cycle.
+
+    // There are more phases than read jobs. That's because the main thread does not read data from disk but only processes
+    // data read by the reader threads. Also, at the end there can be empty jobs.
+    const unsigned long long nr_of_cycles = 1 + (nr_of_read_jobs - 1) / nr_of_reader_threads;
+    const long long nr_of_phases = 1 + (nr_of_cycles + 1) * (nr_of_reader_threads + 1);  // end with the master thread
+
+
+    // Start of parallel region
+
+    #pragma omp parallel num_threads(nr_of_reader_threads + 1) shared(nr_of_reader_threads)
+    {
+      #pragma omp for ordered schedule(static, 1)
+      for (long long phase_id = 0; phase_id < nr_of_phases; phase_id++)
+      {
+        const int cur_thread = CurrentFstThread();  // thread_id determines type of job
+        const int nr_of_threads = nr_of_reader_threads + 1;
+
+        const bool is_master = (phase_id % nr_of_threads) == 0;
+        const unsigned long long cycle_nr = phase_id / nr_of_threads;
+        const unsigned long long read_job_id = cycle_nr * nr_of_reader_threads + (phase_id - 1) % nr_of_threads;
+
+        unsigned long long block_batch_size = 0;
+        char* thread_buffer = nullptr;
+
+        if (read_job_id < nr_of_read_jobs)  // there is something to read in the ordered block
+        {
+          const unsigned long long buf_id = read_job_id % (2 * nr_of_reader_threads);  // buffer index
+          const unsigned long long buf_offset = read_buffer_sizes[buf_id];  // thread buffer offset
+          const unsigned long long read_block_start = 1 + read_job_id * blocks_per_read_job;
+          const unsigned long long read_block_end = std::min(read_block_start + blocks_per_read_job, nr_of_blocks + 1);  // block 0 already processed
+
+          thread_buffer = &read_buffer[buf_offset];  // each thread has it's own two buffers
+          block_batch_size = blockOffset[read_block_end + 1] - blockOffset[read_block_start + 1];
+        }
+
+        if (is_master)  // master thread fills the result vector
+        {
+          if (cycle_nr < 2)  // no buffer data available before cycle 2 
+          {
+            // work can be done here
+          }
+          else
+          {
+            // set vector elements
+          }
+        }
+        else  // reader thread processes buffer data read in previous cycle
+        {
+          if (cycle_nr > 0)  // no data in buffer before cycle 1
+          {
+            const unsigned long long read_buf_page_id = (read_job_id + nr_of_reader_threads) % (2 * nr_of_reader_threads);
+            const unsigned long long read_buf_offset = read_buffer_sizes[read_buf_page_id];  // thread buffer offset
+            char* read_thread_buffer = &read_buffer[read_buf_offset];  // each thread has it's own two buffers
+
+            // uncompress and process raw buffer data
+          }
+        }
+
+        #pragma omp ordered
+        {
+          // reading from disk is done on (a single) reader thread
+          if (cur_thread != 0 & read_job_id < nr_of_read_jobs)
+          {
+            myfile.read(thread_buffer, block_batch_size); // read a couple of blocks
+          }
+        }
+      }
+    }
+
+    // process the last (possibly partial) block
+    unsigned long long last_block_size = blockOffset[nr_of_blocks + 2] - blockOffset[nr_of_blocks + 1];
+    ReadDataBlock_v6(myfile, blockReader, last_block_size, nrOfElements, 0, end_offset, vecPos);
 
     return;
   }
