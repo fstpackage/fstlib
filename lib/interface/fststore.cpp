@@ -369,7 +369,7 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   {
     std::unique_ptr<IStringWriter> blockRunnerP(fstTable.GetColNameWriter());
     IStringWriter* blockRunner = blockRunnerP.get();
-    fdsWriteCharVec_v6(myfile, blockRunner, 0, StringEncoding::NATIVE);   // column names
+    fdsWriteCharVec_v6(myfile, blockRunner, 0, blockRunner->Encoding());   // column names
   }
 
   // Size of chunkset index header plus data chunk header

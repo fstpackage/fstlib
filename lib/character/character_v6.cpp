@@ -501,6 +501,16 @@ inline void ReadDataBlockCompressed_v6(istream& myfile, IStringColumn* blockRead
 }
 
 
+// Character column fst format
+//
+// Pos | Size                   | Type               | bit   | Tag                | Description                                  |
+//
+// 0    | 4                      | unsigned int       | 0     | compression        | flag compressed (1) / uncompressed (0)       |
+// 0    | 4                      | unsigned int       | 1 - 3 | character encoding | maps to StringEncoding numerator             |
+// 4    | 4                      | unsigned int       |       | block size         | number of elements in character column block |
+// 8    | 8 * (nr_of_blocks + 1) | unsigned long long |       | block offsets      | data block offsets relative to column start  |
+// data | y                      | char               |       | block data         | data block                                   |
+
 /**
  * \brief 
  * \param myfile open file stream to a valid fst file
@@ -527,13 +537,13 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
   const unsigned long long tot_nr_of_blocks = (size - 1) / block_size_char; // total number of blocks on disk minus 1
   const unsigned long long start_block = startRow / block_size_char;  // zero-based block number containing first required element
   const unsigned long long start_offset = startRow - (start_block * block_size_char);  // zero-based offset of first required element in start_block
-  const unsigned long long end_block = (startRow + vec_length - 1) / block_size_char;  // zero-based number of block containing last required lement
+  const unsigned long long end_block = (startRow + vec_length - 1) / block_size_char;  // zero-based number of block containing last required element
   const unsigned long long end_offset = (startRow + vec_length - 1) - end_block * block_size_char;  // zero-based offset of last required element in end_block
   unsigned long long nr_of_blocks = 1 + end_block - start_block; // total number of blocks to read from file (including partial)
 
-  // Allocate result vector
+  // Allocate result vector. Executed on main thread.
   blockReader->AllocateVec(vec_length);
-  blockReader->SetEncoding(string_encoding);
+  blockReader->SetEncoding(string_encoding);  // identical encoding for each element
 
   // Vector data is uncompressed
   if (compression == 0)
@@ -552,7 +562,6 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
       myfile.read(reinterpret_cast<char*>(&blockOffset[1]), nr_of_blocks * 8);
     }
 
-
     // Navigate to first selected data block
     unsigned long long offset = blockOffset[0];
     myfile.seekg(block_pos + offset);
@@ -570,7 +579,7 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
     }
 
     // Read first block with offset
-    unsigned long long blockSize = blockOffset[1] - offset; // size of data block
+    const unsigned long long blockSize = blockOffset[1] - offset; // size of data block
     ReadDataBlock_v6(myfile, blockReader, blockSize, nrOfElements, start_offset, endElem, 0);
 
     if (start_block == end_block) // subset start and end of block
@@ -720,33 +729,27 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
           }
           else
           {
-            // set vector elements
-
-            // use buffers from two cycles before
-            const unsigned long long start_buf_id = (cycle_nr % 2) * nr_of_reader_threads;
-
             // process a range of job results
             const unsigned long long start_job = (cycle_nr - 2) * nr_of_reader_threads;
-            const unsigned long long end_job = start_job + nr_of_reader_threads, nr_of_read_jobs;
+            const unsigned long long end_job = start_job + nr_of_reader_threads;
 
             unsigned int str_sizes[BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR];  // default size for full block
 
             if (end_job < nr_of_read_jobs)
             {
-              for (int read_job_id = start_job; read_job_id < end_job; read_job_id++)
+              for (unsigned long long read_job_count = start_job; read_job_count < end_job; read_job_count++)
               {
                 // get buffer
-                const unsigned long long page_id = read_job_id % (2 * nr_of_reader_threads);
+                const unsigned long long page_id = read_job_count % (2 * nr_of_reader_threads);
                 const unsigned long long page_offset = read_buffer_sizes[page_id];  // thread buffer offset
                 char* page_buffer = &read_buffer[page_offset];  // each thread has it's own two buffers
 
-                unsigned long long start_block = read_job_id * blocks_per_read_job + 1;
-                unsigned long long end_block = start_block + blocks_per_read_job;
+                const unsigned long long start_block_nr = read_job_count * blocks_per_read_job + 1;
+                const unsigned long long end_block_nr = start_block_nr + blocks_per_read_job;
 
-                for (unsigned long long block_id = start_block; block_id < end_block; block_id++)
+                for (unsigned long long block_id = start_block_nr; block_id < end_block_nr; block_id++)
                 {
                   // copy buffer to stack memory
-                  unsigned long long block_size = blockOffset[block_id + 1] - blockOffset[block_id];
                   const unsigned int byte_size = 4 * (BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR);
                   memcpy(str_sizes, page_buffer, byte_size);  // copy to stack buffer
 
@@ -760,22 +763,19 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
             }
             else  // possible partial last block included
             {
-              unsigned int str_sizes[BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR];  // default size for full block
-
-              for (int read_job_id = start_job; read_job_id < nr_of_read_jobs; read_job_id++)  // finish last read jobs
+              for (unsigned long long read_job_count = start_job; read_job_count < nr_of_read_jobs; read_job_count++)  // finish last read jobs
               {
                 // get buffer
-                const unsigned long long page_id = read_job_id % (2 * nr_of_reader_threads);
+                const unsigned long long page_id = read_job_count % (2 * nr_of_reader_threads);
                 const unsigned long long page_offset = read_buffer_sizes[page_id];  // thread buffer offset
                 char* page_buffer = &read_buffer[page_offset];  // each thread has it's own two buffers
 
-                unsigned long long start_block = read_job_id * blocks_per_read_job + 1;
-                unsigned long long end_block = std::min(start_block + blocks_per_read_job, nr_of_blocks);  // don't include last block
+                const unsigned long long start_block_nr = read_job_count * blocks_per_read_job + 1;
+                const unsigned long long end_block_nr = std::min(start_block_nr + blocks_per_read_job, nr_of_blocks);  // don't include last block
 
-                for (unsigned long long block_id = start_block; block_id < end_block; block_id++)
+                for (unsigned long long block_id = start_block_nr; block_id < end_block_nr; block_id++)
                 {
                   // copy buffer to stack memory
-                  unsigned long long block_size = blockOffset[block_id + 1] - blockOffset[block_id];
                   const unsigned int byte_size = 4 * (BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR);
                   memcpy(str_sizes, page_buffer, byte_size);  // copy to stack buffer
 
@@ -787,22 +787,18 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
                 }
 
                 // last possibly partial block
-                if (end_block == nr_of_blocks)
+                if (end_block_nr == nr_of_blocks)
                 {
-                  // copy buffer to stack memory
-                  unsigned long long block_size = blockOffset[end_block + 1] - blockOffset[end_block];
-
                   const unsigned long long nr_of_na_ints = 1 + nrOfElements / 32; // last bit is NA flag
                   const unsigned long long tot_elements = nrOfElements + nr_of_na_ints;
 
-                  const unsigned int byte_size = 4 * (BLOCKSIZE_CHAR_NA_INTS + BLOCKSIZE_CHAR);
+                  const unsigned int byte_size = 4 * tot_elements;
                   memcpy(str_sizes, page_buffer, byte_size);  // copy to stack buffer
 
                   //const unsigned int char_data_size = blockSize - byte_size;
                   char* buf = &page_buffer[byte_size];
 
                   blockReader->BufferToVec(nrOfElements, 0, nrOfElements - 1, vecPos, str_sizes, buf);
-                  vecPos += block_size_char;
                 }
               }
             }
@@ -842,7 +838,7 @@ void fdsReadCharVec_v6(istream& myfile, IStringColumn* blockReader, unsigned lon
 
   // Vector data is compressed
 
-  unsigned int bufLength = (nr_of_blocks + 1) * CHAR_INDEX_SIZE; // 1 long and 2 unsigned int per block
+  const unsigned int bufLength = (nr_of_blocks + 1) * CHAR_INDEX_SIZE; // 1 long and 2 unsigned int per block
 
   // add extra first element for convenience
   std::unique_ptr<char[]> blockInfoP = std::unique_ptr<char[]>(new char[bufLength + CHAR_INDEX_SIZE]);
