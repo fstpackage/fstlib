@@ -45,6 +45,7 @@ public:
 class StringColumn : public IStringColumn
 {
 	std::shared_ptr<StringVector> shared_data;
+  StringEncoding string_encoding;
 
 public:
 	StringColumn()
@@ -60,7 +61,12 @@ public:
 
 	void SetEncoding(StringEncoding stringEncoding)
 	{
-		
+    this->string_encoding = stringEncoding;
+	}
+
+  StringEncoding GetEncoding()
+	{
+    return string_encoding;
 	}
 
 	void BufferToVec(unsigned long long nrOfElements, unsigned long long startElem, unsigned long long endElem, unsigned long long vecOffset,
@@ -399,7 +405,8 @@ public:
 class StringArray : public IStringArray
 {
 	std::vector<std::string>* strVec = nullptr;
-	bool external = true;
+  StringEncoding string_encoding;
+  bool external = true;
 
 public:
 	StringArray() {	}
@@ -462,6 +469,11 @@ public:
 	unsigned int Length()
 	{
 		return (int) strVec->size();
+	}
+
+  void SetEncoding(StringEncoding string_encoding)
+	{
+    this->string_encoding = string_encoding;
 	}
 };
 

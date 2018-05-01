@@ -43,6 +43,5 @@ vs/x64
 *.ilk
 *.opendb
 *.testdurations
-/lib/boost/
 *.enc
 *.TMP
