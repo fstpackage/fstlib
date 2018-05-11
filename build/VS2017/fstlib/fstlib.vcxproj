@@ -76,7 +76,7 @@
     <ClCompile Include="..\..\..\lib\interface\fststore.cpp" />
     <ClCompile Include="..\..\..\lib\interface\openmphelper.cpp" />
     <ClCompile Include="..\..\..\lib\logical\logical_v10.cpp" />
-    <ClCompile Include="..\..\..\lib\LZ4\lz4.cpp" />
+    <ClCompile Include="..\..\..\lib\LZ4\lz4.c" />
     <ClCompile Include="..\..\..\lib\LZ4\xxhash.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\entropy_common.c" />
     <ClCompile Include="..\..\..\lib\ZSTD\common\error_private.c" />
