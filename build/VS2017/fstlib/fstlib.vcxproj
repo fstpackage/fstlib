@@ -44,6 +44,7 @@
     <ClInclude Include="..\..\..\lib\LZ4\xxhash.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\bitstream.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\compiler.h" />
+    <ClInclude Include="..\..\..\lib\ZSTD\common\cpu.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\error_private.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\fse.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\common\huf.h" />
@@ -54,6 +55,7 @@
     <ClInclude Include="..\..\..\lib\ZSTD\common\zstd_internal.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\compress\zstdmt_compress.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\compress\zstd_compress.h" />
+    <ClInclude Include="..\..\..\lib\ZSTD\compress\zstd_compress_internal.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\compress\zstd_double_fast.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\compress\zstd_fast.h" />
     <ClInclude Include="..\..\..\lib\ZSTD\compress\zstd_lazy.h" />
