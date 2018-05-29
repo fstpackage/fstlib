@@ -28,6 +28,7 @@
 
 #include <fstream>
 #include <memory>
+#include <cstring>  // memset
 
 
 // #include <boost/unordered_map.hpp>

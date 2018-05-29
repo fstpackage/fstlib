@@ -225,8 +225,11 @@ void fdsStreamcompressed_v2(ofstream& myfile, char* colVec, unsigned long long n
 
   // Blocks meta information
   // Aligned at 8 byte boundary
-  std::unique_ptr<char[]> blockIndexP(new char[(2 + nrOfBlocks) * 8]);
+  unsigned int block_index_size = (2 + nrOfBlocks) * 8;
+  std::unique_ptr<char[]> blockIndexP(new char[block_index_size]);
   char* blockIndex = blockIndexP.get(); // 1 long file pointer with 2 highest bytes indicating algorithmID
+
+  memset(blockIndex, 0, block_index_size);
 
   unsigned int* maxCompSize = reinterpret_cast<unsigned int*>(&blockIndex[0]); // maximum uncompressed block length
   unsigned int* blockSizeElements = reinterpret_cast<unsigned int*>(&blockIndex[4]); // number of elements per block
