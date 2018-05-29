@@ -114,6 +114,9 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
     std::unique_ptr<char[]> metaP(new char[metaSize]);
     char* meta = metaP.get();
 
+    // clear memory for safety
+    memset(meta, 0, metaSize);
+
     // Set column header
     unsigned int* isCompressed = reinterpret_cast<unsigned int*>(meta);
     unsigned int* blockSizeChar = reinterpret_cast<unsigned int*>(&meta[4]);
@@ -150,6 +153,9 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 
   std::unique_ptr<char[]> metaP(new char[metaSize]);
   char* meta = metaP.get();
+
+  // clear memory for safety
+  memset(meta, 0, metaSize);
 
   // Set column header
   unsigned int* isCompressed = reinterpret_cast<unsigned int*>(meta);
