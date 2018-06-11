@@ -43,3 +43,5 @@ vs/x64
 *.ilk
 *.opendb
 *.testdurations
+*.TMP
+*.enc
