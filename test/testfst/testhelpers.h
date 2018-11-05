@@ -35,23 +35,18 @@ inline FilePath GetTestDataDir()
 	FilePath curDir = FilePath::GetCurrentDir();
 	vector<std::string> dirs = split(curDir.string(), '\\');
 
-	int cutCount = 0;
-	for (int strElem = (int) dirs.size() - 1; strElem >= 0; strElem--) {
-		if (dirs[strElem] != "build") {
-			cutCount++;
-			continue;
-		}
-		break;
+	// account for forward slashes
+	if (dirs.size() == 1)
+	{
+		dirs = split(curDir.string(), '/');
 	}
 
 	std::string projectDir = dirs[0];
-
-	for (int strElem = 1; strElem < dirs.size() - cutCount - 1; strElem++) {
-		projectDir += '\\' + dirs[strElem];
+	for (unsigned int strCount = 1; strCount < dirs.size() - 1; strCount++) {
+		projectDir += '/' + dirs[strCount];
 	}
 
-	FilePath testDataDir = FilePath::ConcatPaths(FilePath(projectDir), FilePath("tests\\testData"));
-	testDataDir.CreateFolder();
+	FilePath testDataDir = FilePath::ConcatPaths(FilePath(projectDir), FilePath("/testdata"));
 
 	return testDataDir;
 }

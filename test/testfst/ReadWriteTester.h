@@ -1,5 +1,8 @@
 
-#pragma once
+#ifndef READ_WRITE_TESTER_H
+#define READ_WRITE_TESTER_H
+
+#include <cstring>
 
 #include "gtest/gtest.h"
 
@@ -199,7 +202,7 @@ public:
 			FstTable tableRead;
 			fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols);
 
-      fstStore.fstMeta(&columnFactory);
+			fstStore.fstMeta(&columnFactory);
 
 			CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead);
 
@@ -222,3 +225,4 @@ public:
 	}
 };
 
+#endif // READ_WRITE_TESTER_H

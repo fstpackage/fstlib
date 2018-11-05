@@ -1,9 +1,9 @@
 
+#include <string>
+#include <climits>
 
 #include "gtest/gtest.h"
 #include "gtest/internal/gtest-filepath.h"
-
-#include <string>
 
 #include <interface/fststore.h>
 #include <interface/icolumnfactory.h>

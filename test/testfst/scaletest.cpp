@@ -55,26 +55,26 @@ TEST_F(ScaleTest, SmallVec)
 }
 
 
-TEST_F(ScaleTest, BigVec)
-{
-  int nrOfRows = 580000000;
-  FstTable fstTable(nrOfRows);
-  fstTable.InitTable(1, nrOfRows);
-
-  vector<std::string> colNames{ "integer" };
-  fstTable.SetColumnNames(colNames);
-
-  // Basic int column
-  IntVectorAdapter int32Vec(nrOfRows, FstColumnAttribute::INT_32_BASE, 0);
-
-  int* intP = int32Vec.Data();
-  IntSeq(reinterpret_cast<int*>(intP), 10, 100);
-
-  std::string annotation("");
-  fstTable.SetIntegerColumn(&int32Vec, 0, annotation);
-
-  ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 1);
-}
+//TEST_F(ScaleTest, BigVec)
+//{
+//  int nrOfRows = 580000000;
+//  FstTable fstTable(nrOfRows);
+//  fstTable.InitTable(1, nrOfRows);
+//
+//  vector<std::string> colNames{ "integer" };
+//  fstTable.SetColumnNames(colNames);
+//
+//  // Basic int column
+//  IntVectorAdapter int32Vec(nrOfRows, FstColumnAttribute::INT_32_BASE, 0);
+//
+//  int* intP = int32Vec.Data();
+//  IntSeq(reinterpret_cast<int*>(intP), 10, 100);
+//
+//  std::string annotation("");
+//  fstTable.SetIntegerColumn(&int32Vec, 0, annotation);
+//
+//  ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 1);
+//}
 
 
 //TEST_F(ScaleTest, BigVecFromR)

@@ -48,5 +48,5 @@ TEST_F(LogicalTest, SmallVec)
 
 	fstTable.SetLogicalColumn(&logicalVec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+//	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
 }

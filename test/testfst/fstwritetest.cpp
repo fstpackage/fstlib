@@ -43,7 +43,8 @@ TEST_F(FstWriteTest, MixedColumns)
 	// Add integer column
 	IntVectorAdapter intVec(nrOfRows, FstColumnAttribute::INT_32_BASE, 0);
 	IntSeq(intVec.Data(), nrOfRows, 0);
-	fstTable.SetIntegerColumn(&intVec, 0, std::string("annotation"));
+	std::string annotation("annotation");
+	fstTable.SetIntegerColumn(&intVec, 0, annotation);
 
 	// Add string column
 	StringColumn strColumn{};

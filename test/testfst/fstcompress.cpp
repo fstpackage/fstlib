@@ -115,7 +115,7 @@ TEST_F(CompressTest, SmallVec)
 
 	CompDecompCycle(reinterpret_cast<unsigned char*>(testData), 4 * nrOfInts, COMPRESSION_ALGORITHM::ALGORITHM_LZ4, 100);
 
-	delete testData;
+	delete[] testData;
 }
 
 
