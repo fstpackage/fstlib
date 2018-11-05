@@ -30,13 +30,14 @@
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>
+#include <climits>
 
 #include "compression/compressor.h"
 #include "interface/fstdefines.h"
 #include "interface/itypefactory.h"
 #include "interface/openmphelper.h"
 
-#include "LZ4/xxhash.h"
+#include "xxhash.h"
 #include <memory>
 
 enum COMPRESSION_ALGORITHM
