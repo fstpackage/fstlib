@@ -1,1 +1,0 @@
-# fstlib library : usage examples
