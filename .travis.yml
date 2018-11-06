@@ -11,7 +11,7 @@ os:
 
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then pip install --user cpp-coveralls; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export LD_LIBRARY_PATH=$(if [[ $CXX == "clang++" ]]; then echo -n '/usr/local/clang/lib'; fi)
+  - if [[ "$TRAVIS_OS_NAME" == "linux" && $CXX == "clang++" ]]; then export LD_LIBRARY_PATH=/usr/local/clang-5.0.0/lib; fi
 
 before_script:
   - mkdir build
