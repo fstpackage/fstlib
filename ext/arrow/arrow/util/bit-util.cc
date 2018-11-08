@@ -20,12 +20,7 @@
 #include <intrin.h>
 #define __builtin_popcount __popcnt
 #include <nmmintrin.h>
-#if _WIN64
-  #define __builtin_popcountll _mm_popcnt_u64
-#else
-  #define __builtin_popcountll _mm_popcnt_u32
-#endif
-
+#define __builtin_popcountll _mm_popcnt_u64
 #endif
 
 #include <algorithm>
@@ -75,6 +70,7 @@ Status BytesToBits(const std::vector<uint8_t>& bytes, MemoryPool* pool,
 
 namespace internal {
 
+/*
 int64_t CountSetBits(const uint8_t* data, int64_t bit_offset, int64_t length) {
   constexpr int64_t pop_len = sizeof(uint64_t) * 8;
 
@@ -115,6 +111,7 @@ int64_t CountSetBits(const uint8_t* data, int64_t bit_offset, int64_t length) {
 
   return count;
 }
+*/
 
 template <bool invert_bits, bool restore_trailing_bits>
 void TransferBitmap(const uint8_t* data, int64_t offset, int64_t length,
