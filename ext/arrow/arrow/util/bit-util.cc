@@ -23,7 +23,7 @@
 #if _WIN64
   #define __builtin_popcountll _mm_popcnt_u64
 #else
-  #define __builtin_popcountll _mm_popcnt_u
+  #define __builtin_popcountll _mm_popcnt_u32
 #endif
 
 #endif
