@@ -167,11 +167,29 @@ static inline int CountLeadingZeros(uint32_t value) {
 #endif
 }
 
+
+// Check windows
+#if _WIN32 || _WIN64
+  #if _WIN64
+    #define ENVIRONMENT64
+  #else
+    #define ENVIRONMENT32
+  #endif
+#elif __GNUC__
+  #if __x86_64__ || __ppc64__
+    #define ENVIRONMENT64
+  #else
+    #define ENVIRONMENT32
+  #endif
+#endif
+
+
 static inline int CountLeadingZeros(uint64_t value) {
+
 #if defined(__clang__) || defined(__GNUC__)
   if (value == 0) return 64;
   return static_cast<int>(__builtin_clzll(value));
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && defined(ENVIRONMENT64)
   unsigned long index;                     // NOLINT
   if (_BitScanReverse64(&index, value)) {  // NOLINT
     return 63 - static_cast<int>(index);
