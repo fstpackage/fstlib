@@ -20,7 +20,12 @@
 #include <intrin.h>
 #define __builtin_popcount __popcnt
 #include <nmmintrin.h>
-#define __builtin_popcountll _mm_popcnt_u64
+#if _WIN64
+  #define __builtin_popcountll _mm_popcnt_u64
+#else
+  #define __builtin_popcountll _mm_popcnt_u
+#endif
+
 #endif
 
 #include <algorithm>

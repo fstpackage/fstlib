@@ -2,7 +2,6 @@
 # minimum cmake version
 cmake_minimum_required(VERSION 2.8)
 
-
 # use at least C++ 11
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,7 +13,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # define fstlib project
 project(fstlib)
 
-
 # use OpenMP if available
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -25,26 +23,21 @@ else()
 	message("No OpenMP detected, fstlib builds without OpenMP but needs it for optimal performance!")
 endif()
 
-
 # add googletest library: https://github.com/google/googletest
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 add_subdirectory(ext/gtest)
 enable_testing(true)
 
-
 # add external compression libraries
 add_subdirectory(ext/lz4)
 add_subdirectory(ext/zstd)
 
-
 # add arrow library
 add_subdirectory(ext/arrow)
-
 
 # add the fst library components
 add_subdirectory(lib/fst)
 add_subdirectory(lib/fsttable)
-
 
 # add unit tests
 add_subdirectory(test/testfst)
