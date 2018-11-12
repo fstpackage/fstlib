@@ -5,7 +5,9 @@ set(libzstd_SRCS
 	common/fse_decompress.c
 	common/zstd_common.c
 	common/pool.c
+	common/debug.c
 	compress/fse_compress.c
+	compress/hist.c
 	compress/huf_compress.c
 	compress/zstd_compress.c
 	compress/zstd_fast.c
