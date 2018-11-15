@@ -118,17 +118,17 @@ public:
     // block size to use for compression has a lower bound for compression efficiency
     const unsigned long long minBlock = std::max(static_cast<unsigned long long>(BLOCKSIZE), 1 + (blobLength - 1) / PREV_NR_OF_BLOCKS);
 
-    // and a higher bound for compressor compatability
-    const unsigned int blockSize = static_cast<unsigned int>(std::min(minBlock, static_cast<unsigned long long>(INT_MAX)));
+    // and a higher bound for compressor compatibility
+    const unsigned long long blockSize = static_cast<unsigned long long>(std::min(minBlock, static_cast<unsigned long long>(INT_MAX)));
 
-    const int nrOfBlocks = static_cast<int>(1 + (blobLength - 1) / blockSize);
-    nrOfThreads = std::min(nrOfThreads, nrOfBlocks);
+    const unsigned long long nrOfBlocks = 1 + (blobLength - 1) / blockSize;
+    nrOfThreads = std::min(nrOfThreads, static_cast<int>(nrOfBlocks));
 
-    const unsigned int maxCompressSize = this->compressor->CompressBufferSize(blockSize);
-    const unsigned int lastBlockSize = 1 + (blobLength - 1) % blockSize;
+    const int maxCompressSize = this->compressor->CompressBufferSize(blockSize);
+    const unsigned long long lastBlockSize = 1 + (blobLength - 1) % blockSize;
 
-    const unsigned long long bufSize = nrOfBlocks * maxCompressSize;
-    const float blocksPerThread = static_cast<float>(nrOfBlocks) / nrOfThreads;
+    const unsigned long long bufSize = nrOfBlocks * static_cast<unsigned long long>(maxCompressSize);
+    const double blocksPerThread = static_cast<double>(nrOfBlocks) / nrOfThreads;
 
     // Compressed sizes
     std::unique_ptr<unsigned long long[]> compSizesP(new unsigned long long[nrOfBlocks + 1]);
@@ -168,6 +168,7 @@ public:
         unsigned long long bufPos = 0;
         for (int block = blockNr; block < nextblockNr; block++)
         {
+			// error when > 4 GB !
           const int compSize = this->compressor->Compress(reinterpret_cast<char*>(threadBuf + bufPos), maxCompressSize,
             reinterpret_cast<char*>(&blobSource[block * blockSize]), blockSize, compAlgo);
           compSizes[block] = static_cast<unsigned long long>(compSize);

@@ -163,9 +163,10 @@ TEST_F(CompressTest, LargeVector)
 {
 	// Create blob with integer data
 	const int nrOfInts = 28000000;  // 1e8 bytes
+	//const long long nrOfInts = 1074000000;  // > 4 GB
 	int* testData = new int[nrOfInts];
 
-	IntSeq(testData, 10, nrOfInts);  // create test data
+	IntSeq(testData, nrOfInts, 10);  // create test data
 
 	ThreadsFst(37);
 
