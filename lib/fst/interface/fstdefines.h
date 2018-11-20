@@ -28,12 +28,13 @@
 
 // Format related defines
 
-// version of fst format
+// Version of fst format
 #define FST_VERSION_MAJOR    0                  // for breaking interface changes
-#define FST_VERSION_MINOR    0                  // for new (non-breaking) interface capabilities
-#define FST_VERSION_RELEASE  1                  // for tweaks, bug-fixes, or development 
+#define FST_VERSION_MINOR    1                  // for new (non-breaking) interface capabilities
+#define FST_VERSION_RELEASE  0                  // for tweaks, bug-fixes, or development 
 
-#define FST_VERSION          (FST_VERSION_MAJOR * 64 * 64 + FST_VERSION_MINOR * 64 + FST_VERSION_RELEASE)
+// Note that the release version number can change without affecting read/write cycles
+#define FST_VERSION          (FST_VERSION_MAJOR * 256 + FST_VERSION_MINOR)
 #define FST_COMPRESS_VERSION 1
 
 #define FST_MAGIC_NUMBER     0x50414150         // magic number and signature of the fst format
