@@ -226,11 +226,6 @@ public:
             block_hashes[block] = XXH64(thread_buf + buf_pos, comp_size, FST_HASH_SEED);
           }
 
-		  if (comp_size > max_compress_size)
-		  {
-			  int x = 1;
-		  }
-
           buf_pos += comp_size;
         }
 
@@ -291,7 +286,7 @@ public:
     unsigned long long* blockOffsets = reinterpret_cast<unsigned long long*>(blobData + 32);
 
     *pBlockSize = block_size;
-    *version = 1;
+    *version = FST_COMPRESS_VERSION;
     *algo = compression_algorithm | ((1 << 31) * hash); // upper bit signals isHashed
     *vecLength = blob_length;
     *hashResult = allBlockHash;
@@ -312,9 +307,9 @@ public:
 #pragma omp parallel for schedule(static, 1)
     for (int blockBatch = 0; blockBatch < nr_of_threads; blockBatch++)
     {
-      const float blockOffset = blockBatch * blocks_per_thread;
+      const double blockOffset = blockBatch * blocks_per_thread;
       const int blockNr = static_cast<int>(DOUBLE_DELTA + blockOffset);
-      unsigned char* threadBuf = calc_buffer + max_compress_size * blockNr; // buffer for compression results of current thread
+      unsigned char* threadBuf = calc_buffer + static_cast<unsigned long long>(max_compress_size) * blockNr; // buffer for compression results of current thread
       std::memcpy(blobData + dataOffsets[blockBatch], threadBuf, comp_batch_sizes[blockBatch]);
     } // end parallel region
 
@@ -358,7 +353,9 @@ public:
 
     unsigned int* headerHash = reinterpret_cast<unsigned int*>(blobSource);
     unsigned int* blockSize = reinterpret_cast<unsigned int*>(blobSource + 4);
-    //unsigned int* version            = reinterpret_cast<unsigned int*>(blobSource + 8);
+
+	unsigned int* version = reinterpret_cast<unsigned int*>(blobSource + 8);
+	
     unsigned int* algo = reinterpret_cast<unsigned int*>(blobSource + 12);
     unsigned long long* vecLength = reinterpret_cast<unsigned long long*>(blobSource + 16);
     unsigned long long* hashResult = reinterpret_cast<unsigned long long*>(blobSource + 24);
@@ -380,30 +377,33 @@ public:
 
     const unsigned int headHash = XXH32(&blobSource[4], headerSize - 4, FST_HASH_SEED); // header hash
 
+	// header hash check
     if (*headerHash != headHash)
     {
       throw(std::runtime_error(FSTERROR_COMP_HEADER));
     }
 
+    // version check
+	if (*version > FST_COMPRESS_VERSION)
+	{
+		throw(std::runtime_error(FSTERROR_COMP_FUTURE_VERSION));
+	}
 
-    // Version checks here
+	// Source vector has correct length
+	if (blockOffsets[nrOfBlocks] != blobLength)
+	{
+		throw(std::runtime_error(FSTERROR_COMP_SIZE));
+	}
 
     // Create result blob
-    IBlobContainer* blobContainer = typeFactory->CreateBlobContainer(*vecLength); // create result blob
-    unsigned char* blobData = blobContainer->Data();
-
-    // Source vector has correct length
-    if (blockOffsets[nrOfBlocks] != blobLength)
-    {
-      delete blobContainer;
-      throw(std::runtime_error(FSTERROR_COMP_SIZE));
-    }
+	IBlobContainer* blob_container = typeFactory->CreateBlobContainer(*vecLength);
+    unsigned char* blob_data = blob_container->Data();
 
     // Determine required number of threads
     nrOfThreads = std::min(nrOfBlocks, nrOfThreads);
 
     // Determine number of blocks per (thread) batch
-    const float batchFactor = static_cast<float>(nrOfBlocks) / nrOfThreads;
+    const double batchFactor = static_cast<double>(nrOfBlocks) / nrOfThreads;
 
     bool error = false;
 
@@ -456,7 +456,7 @@ public:
 
       if (totHashes != *hashResult)
       {
-        delete blobContainer;
+        delete blob_container;
         throw(std::runtime_error(FSTERROR_COMP_DATA_HASH));
       }
     }
@@ -475,7 +475,7 @@ public:
           const unsigned long long blockStart = blockOffsets[block];
           const unsigned long long blockEnd = blockOffsets[block + 1];
 
-          const unsigned int errorCode = decompressor.Decompress(algorithm, reinterpret_cast<char*>(blobData) + *blockSize * block,
+          const unsigned int errorCode = decompressor.Decompress(algorithm, reinterpret_cast<char*>(blob_data) + *blockSize * block,
             *blockSize, reinterpret_cast<const char*>(blobSource + blockStart), blockEnd - blockStart);
 
           if (errorCode != 0)
@@ -495,7 +495,7 @@ public:
         {
           const unsigned long long blockStart = blockOffsets[block];
           const unsigned long long blockEnd = blockOffsets[block + 1];
-          const unsigned int errorCode = decompressor.Decompress(algorithm, reinterpret_cast<char*>(blobData) + *blockSize * block, *blockSize,
+          const unsigned int errorCode = decompressor.Decompress(algorithm, reinterpret_cast<char*>(blob_data) + *blockSize * block, *blockSize,
             reinterpret_cast<const char*>(blobSource + blockStart), blockEnd - blockStart);
 
           if (errorCode != 0)
@@ -508,7 +508,7 @@ public:
         const int lastBlockSize = 1 + (*vecLength - 1) % *blockSize;
         const unsigned long long blockStart = blockOffsets[toBlock - 1];
         const unsigned long long blockEnd = blockOffsets[toBlock];
-        const unsigned int errorCode = decompressor.Decompress(algorithm, reinterpret_cast<char*>(blobData) + *blockSize * (toBlock - 1),
+        const unsigned int errorCode = decompressor.Decompress(algorithm, reinterpret_cast<char*>(blob_data) + *blockSize * (toBlock - 1),
           lastBlockSize, reinterpret_cast<const char*>(blobSource + blockStart), blockEnd - blockStart);
 
         if (errorCode != 0)
@@ -521,11 +521,11 @@ public:
 
     if (error)
     {
-      delete blobContainer;
-      throw(std::runtime_error(FSTERROR_COMP_STREAM));
+		delete blob_container;
+		throw(std::runtime_error(FSTERROR_COMP_STREAM));
     }
 
-    return blobContainer;
+    return blob_container;
   }
 };
 
