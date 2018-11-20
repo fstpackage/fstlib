@@ -20,6 +20,7 @@ set(libzstd_SRCS
 	dictBuilder/cover.c
 	dictBuilder/divsufsort.c
 	dictBuilder/zdict.c
+	dictBuilder/fastcover.c
 )
 
 # declare ZSTD library

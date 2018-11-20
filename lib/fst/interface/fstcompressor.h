@@ -229,8 +229,6 @@ public:
           buf_pos += comp_size;
         }
 
-		const int last_max_compress_size = this->compressor->CompressBufferSize(last_block_size);
-
         // last block might be smaller
         const int comp_size = this->compressor->Compress(reinterpret_cast<char*>(&thread_buf[buf_pos]), max_compress_size,
           reinterpret_cast<char*>(&blob_source[block_size * static_cast<unsigned long long>(next_block_nr)]), last_block_size, comp_algo);
@@ -314,7 +312,7 @@ public:
     } // end parallel region
 
     unsigned long long blockOffset = headerSize;
-    for (int block = 0; block < nr_of_blocks; block++)
+    for (unsigned int block = 0; block != nr_of_blocks; block++)
     {
       blockOffsets[block] = blockOffset;
       blockOffset += comp_sizes[block];
