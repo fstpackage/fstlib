@@ -162,8 +162,10 @@ TEST_F(CompressTest, SingleBlock)
 TEST_F(CompressTest, LargeVector)
 {
 	// Create blob with integer data
-	//const int nrOfInts = 28000000;  // 1e8 bytes
-	const unsigned long long nrOfInts = 1074000001;  // > 4 GB
+	const int nrOfInts = 28000000;  // 1e8 bytes
+
+	//const unsigned long long nrOfInts = 1074000001;  // > 4 GB, use for local testing only
+
 	int* testData = new int[nrOfInts];
 
 	IntSeq(testData, nrOfInts, 10);  // create test data
