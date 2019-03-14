@@ -905,17 +905,19 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
         std::unique_ptr<IIntegerColumn> integerColumnP(columnFactory->CreateIntegerColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale));
         IIntegerColumn* integerColumn = integerColumnP.get();
 
+        tableReader.SetIntegerColumn(integerColumn, colSel);
+
         std::string annotation = "";
         bool hasAnnotation;
+
         fdsReadIntVec_v8(myfile, integerColumn->Data(), pos, firstRow, length, nrOfRows, annotation, hasAnnotation);
 
         if (hasAnnotation)
         {
-          tableReader.SetIntegerColumn(integerColumn, colSel, annotation);
+          integerColumn->Annotate(annotation);
           break;
         }
 
-        tableReader.SetIntegerColumn(integerColumn, colSel);
         break;
       }
 
@@ -925,17 +927,18 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
         std::unique_ptr<IDoubleColumn> doubleColumnP(columnFactory->CreateDoubleColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale));
         IDoubleColumn* doubleColumn = doubleColumnP.get();
 
+        tableReader.SetDoubleColumn(doubleColumn, colSel);
+
         std::string annotation = "";
         bool hasAnnotation;
+
         fdsReadRealVec_v9(myfile, doubleColumn->Data(), pos, firstRow, length, nrOfRows, annotation, hasAnnotation);
 
         if (hasAnnotation)
         {
-          tableReader.SetDoubleColumn(doubleColumn, colSel, annotation);
-          break;
+          doubleColumn->Annotate(annotation);
         }
 
-        tableReader.SetDoubleColumn(doubleColumn, colSel);
         break;
       }
 
@@ -990,7 +993,9 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
   // Key index
   SetKeyIndex(keyIndex, keyLength, nrOfSelect, keyColPos, colIndex);
 
-  selectedCols->AllocateArray(nrOfSelect);
+  selectedCols->AllocateArray(nrOfSelect);  // allocate column names
+  tableReader.SetColNames(&*selectedCols);  // set on result table
+
   selectedCols->SetEncoding(blockReader->GetEncoding());
 
   for (int i = 0; i < nrOfSelect; ++i)

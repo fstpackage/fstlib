@@ -204,6 +204,7 @@ class IntVectorAdapter : public IIntegerColumn
 	std::shared_ptr<IntVector> shared_data;
   FstColumnAttribute columnAttribute;
   short int scale;
+  std::string annotation;
 
 public:
 	IntVectorAdapter(unsigned long long length, FstColumnAttribute columnAttribute, short int scale)
@@ -235,6 +236,11 @@ public:
 	std::shared_ptr<DestructableObject> DataPtr() const
 	{
 		return shared_data;
+	}
+
+  void Annotate(std::string annotation)
+	{
+    this->annotation = annotation;
 	}
 };
 
@@ -879,6 +885,14 @@ public:
 	{
 		return nrOfRows;
 	}
+
+  void SetColNames(IStringArray* col_names)
+	{
+    for (int colNr = 0; colNr < this->colNames->size(); colNr++)
+    {
+      (*colNames)[colNr] = col_names->GetElement(colNr);
+    }
+  }
 };
 
 
