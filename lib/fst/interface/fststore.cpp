@@ -124,7 +124,7 @@ using namespace std;
 FstStore::FstStore(std::string fstFile)
 {
   this->fstFile       = fstFile;
-  this->blockReader   = nullptr;
+  // this->blockReader   = nullptr;
   this->keyColPos     = nullptr;
   this->p_nrOfRows    = nullptr;
   metaDataBlock       = nullptr;
@@ -537,7 +537,7 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
 }
 
 
-void FstStore::fstMeta(IColumnFactory* columnFactory)
+void FstStore::fstMeta(IColumnFactory* columnFactory, IStringColumn* col_names)
 {
   // fst file stream using a stack buffer
   ifstream myfile;
@@ -630,10 +630,8 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
   // Read column names
   const unsigned long long colNamesOffset = metaSize + TABLE_META_SIZE;
 
-  blockReaderP = std::unique_ptr<IStringColumn>(columnFactory->CreateStringColumn(nrOfCols, FstColumnAttribute::NONE));
-  blockReader = blockReaderP.get();
-
-  fdsReadCharVec_v6(myfile, blockReader, colNamesOffset, 0, static_cast<unsigned int>(nrOfCols), static_cast<unsigned int>(nrOfCols));
+  col_names->AllocateVec(static_cast<unsigned int>(nrOfCols));
+  fdsReadCharVec_v6(myfile, col_names, colNamesOffset, 0, static_cast<unsigned int>(nrOfCols), static_cast<unsigned int>(nrOfCols));
 
   // cleanup
   myfile.close();
@@ -641,7 +639,7 @@ void FstStore::fstMeta(IColumnFactory* columnFactory)
 
 
 void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, const long long startRow, const long long endRow,
-  IColumnFactory* columnFactory, vector<int> &keyIndex, IStringArray* selectedCols)
+  IColumnFactory* columnFactory, vector<int> &keyIndex, IStringArray* selectedCols, IStringColumn* col_names)
 {
   // fst file stream using a stack buffer
   ifstream myfile;
@@ -736,10 +734,11 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
 
   const unsigned long long colNamesOffset = metaSize + TABLE_META_SIZE;
 
-  blockReaderP = std::unique_ptr<IStringColumn>(columnFactory->CreateStringColumn(nrOfCols, FstColumnAttribute::NONE));
-  blockReader = blockReaderP.get();
+  // blockReaderP = std::unique_ptr<IStringColumn>(columnFactory->CreateStringColumn(nrOfCols, FstColumnAttribute::NONE));
+  // blockReader = blockReaderP.get();
 
-  fdsReadCharVec_v6(myfile, blockReader, colNamesOffset, 0, static_cast<unsigned int>(nrOfCols), static_cast<unsigned int>(nrOfCols));
+  col_names->AllocateVec(static_cast<unsigned int>(nrOfCols));
+  fdsReadCharVec_v6(myfile, col_names, colNamesOffset, 0, static_cast<unsigned int>(nrOfCols), static_cast<unsigned int>(nrOfCols));
 
   // Size of chunkset index header plus data chunk header
   const unsigned long long chunkIndexSize = CHUNK_INDEX_SIZE + DATA_INDEX_SIZE + 8 * nrOfCols;
@@ -822,7 +821,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
 
       for (int colNr = 0; colNr < nrOfCols; ++colNr)
       {
-        const char* str2 = blockReader->GetElement(colNr);
+        const char* str2 = col_names->GetElement(colNr);
         if (strcmp(str1, str2) == 0)
         {
           equal = colNr;
@@ -894,8 +893,12 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
       {
         std::unique_ptr<IStringColumn> stringColumnP(columnFactory->CreateStringColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
         IStringColumn* stringColumn = stringColumnP.get();
-        fdsReadCharVec_v6(myfile, stringColumn, pos, firstRow, length, nrOfRows);
+
+        stringColumn->AllocateVec(static_cast<unsigned int>(length));
         tableReader.SetStringColumn(stringColumn, colSel);
+
+        fdsReadCharVec_v6(myfile, stringColumn, pos, firstRow, length, nrOfRows);
+
         break;
       }
 
@@ -955,10 +958,10 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
       // Factor vector
       case 7:
       {
-        std::unique_ptr<IFactorColumn> factorColumnP(columnFactory->CreateFactorColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
-        IFactorColumn* factorColumn = factorColumnP.get();
-        fdsReadFactorVec_v7(myfile, factorColumn->Levels(), factorColumn->LevelData(), pos, firstRow, length, nrOfRows);
-        tableReader.SetFactorColumn(factorColumn, colSel);
+        FstColumnAttribute col_attribute = static_cast<FstColumnAttribute>(colAttributeTypes[colNr]);
+
+        fdsReadFactorVec_v7(tableReader, myfile, pos, firstRow, length, nrOfRows, col_attribute, columnFactory, colSel);
+
         break;
       }
 
@@ -993,13 +996,15 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
   // Key index
   SetKeyIndex(keyIndex, keyLength, nrOfSelect, keyColPos, colIndex);
 
+  // TODO: if all columns are selected, no copy is required!
+
   selectedCols->AllocateArray(nrOfSelect);  // allocate column names
   tableReader.SetColNames(&*selectedCols);  // set on result table
 
-  selectedCols->SetEncoding(blockReader->GetEncoding());
+  selectedCols->SetEncoding(col_names->GetEncoding());
 
   for (int i = 0; i < nrOfSelect; ++i)
   {
-    selectedCols->SetElement(i, blockReader->GetElement(colIndex[i]));
+    selectedCols->SetElement(i, col_names->GetElement(colIndex[i]));
   }
 }
