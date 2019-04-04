@@ -44,7 +44,8 @@ TEST_F(PreviousVersionTest, SmallVec)
 
 	try
 	{
-		fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols);
+		std::unique_ptr<StringColumn> col_names(new StringColumn());
+		fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, col_names.get());
 	}
 	catch (std::runtime_error& e)
 	{

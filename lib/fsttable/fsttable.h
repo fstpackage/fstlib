@@ -42,7 +42,7 @@ public:
 class StringColumn : public IStringColumn
 {
 	std::shared_ptr<StringVector> shared_data;
-  StringEncoding string_encoding;
+	StringEncoding string_encoding;
 
 public:
 	StringColumn()
@@ -168,7 +168,7 @@ class FactorVector : public DestructableObject
 {
 	int* data = nullptr;
 	StringColumn* levels;
-  unsigned long long length;
+	unsigned long long length;
 
 public:
 	FactorVector(unsigned long long length)
@@ -338,9 +338,12 @@ class FactorVectorAdapter : public IFactorColumn
 	std::shared_ptr<FactorVector> shared_data;
 
 public:
-	FactorVectorAdapter(unsigned long long length)
+	FactorVectorAdapter(unsigned long long length, unsigned long long nr_of_levels, FstColumnAttribute columnAttribute)
 	{
 		shared_data = std::make_shared<FactorVector>(length);
+
+		StringColumn* levels = shared_data->Levels();
+		levels->AllocateVec(nr_of_levels);
 	}
 
 	~FactorVectorAdapter()

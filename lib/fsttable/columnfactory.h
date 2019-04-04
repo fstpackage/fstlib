@@ -11,9 +11,9 @@
 class ColumnFactory : public IColumnFactory
 {
 	// Inherited via IColumnFactory
-	IFactorColumn* CreateFactorColumn(int nrOfRows, FstColumnAttribute columnAttribute)
+	IFactorColumn* CreateFactorColumn(int nrOfRows, int nrOfLevels, FstColumnAttribute columnAttribute)
 	{
-		return new FactorVectorAdapter(nrOfRows);
+		return new FactorVectorAdapter(nrOfRows, nrOfLevels, columnAttribute);
 	}
 
 	ILogicalColumn* CreateLogicalColumn(int nrOfRows, FstColumnAttribute columnAttribute)

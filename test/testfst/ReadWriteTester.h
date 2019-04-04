@@ -200,16 +200,20 @@ public:
 			std::vector<int> keyIndex;
 			StringArray selectedCols;
 			FstTable tableRead;
-			fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols);
 
-			fstStore.fstMeta(&columnFactory);
+			std::unique_ptr<StringColumn> col_names(new StringColumn());
+			fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
+
+			std::unique_ptr<StringColumn> col_names2(new StringColumn());
+			fstStore.fstMeta(&columnFactory, &*col_names2);
 
 			CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead);
 
 			if (nrOfRows > 2)
 			{
 				FstTable tableRead2;
-				fstStore.fstRead(tableRead2, nullptr, nrOfRows - 5, -1, &columnFactory, keyIndex, &selectedCols);
+				std::unique_ptr<StringColumn> col_names(new StringColumn());
+				fstStore.fstRead(tableRead2, nullptr, nrOfRows - 5, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
 				CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead2, nrOfRows - 5, -1);
 			}
 

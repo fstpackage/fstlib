@@ -56,12 +56,14 @@ TEST_F(FstReadTest, BasicRead)
 
 	FstStore fstStore(GetFilePath("data1.fst"));
 
-  fstStore.fstMeta(columnFactory);
+	std::unique_ptr<StringColumn> col_names(new StringColumn());
+	fstStore.fstMeta(columnFactory, &*col_names);
 
 	// Read fst file
 	try
 	{
-		fstStore.fstRead(*tableReader, columnSelection, 1, -1, columnFactory, keyIndex, selectedCols);
+		std::unique_ptr<StringColumn> col_names2(new StringColumn());
+		fstStore.fstRead(*tableReader, columnSelection, 1, -1, columnFactory, keyIndex, selectedCols, col_names2.get());
 	}
 	catch (const std::runtime_error&)
 	{
@@ -76,7 +78,8 @@ TEST_F(FstReadTest, WrongFormat)
 	FstStore fstStore(FilePath::ConcatPaths(GetTestDataDir(), FilePath("wrongformat.fst")).string());
 
 	// Read fst file
-	EXPECT_ANY_THROW(fstStore.fstRead(*tableReader, nullptr, 1, 10, columnFactory, keyIndex, selectedCols));
+	std::unique_ptr<StringColumn> col_names(new StringColumn());
+	EXPECT_ANY_THROW(fstStore.fstRead(*tableReader, nullptr, 1, 10, columnFactory, keyIndex, selectedCols, col_names.get()));
 }
 
 
