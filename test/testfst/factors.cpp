@@ -60,10 +60,10 @@ TEST_F(FactorTest, NaLevels)
 	fstTable.SetColumnNames(colNames);
 
 	// Add factor column
-	FactorVectorAdapter factorVec(nrOfRows);
+	FactorVectorAdapter factorVec(nrOfRows, 0, FstColumnAttribute::FACTOR_BASE);
 	IntConstantVal(factorVec.LevelData(), nrOfRows, FST_NA_INT);
-	StringColumn* levels = factorVec.DataPtr()->Levels();
-	levels->AllocateVec(0);
+	//StringColumn* levels = factorVec.DataPtr()->Levels();
+	//levels->AllocateVec(0);
 	fstTable.SetFactorColumn(&factorVec, 0);
 
 	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
@@ -80,12 +80,12 @@ TEST_F(FactorTest, MediumLevels)
   fstTable.SetColumnNames(colNames);
 
   // Add factor column
-  FactorVectorAdapter factorVec(nrOfRows);
-  IntSeq(factorVec.LevelData(), nrOfRows, 1);
-  StringColumn* levels = factorVec.DataPtr()->Levels();
-
   int nr_of_levels = 128;
-  levels->AllocateVec(nr_of_levels);
+  FactorVectorAdapter factorVec(nrOfRows, nr_of_levels, FstColumnAttribute::FACTOR_BASE);
+  IntSeq(factorVec.LevelData(), nrOfRows, 1);
+
+  StringColumn* levels = factorVec.DataPtr()->Levels();
+  //levels->AllocateVec(nr_of_levels);
 
   std::vector<std::string> levelVec = *(levels->StrVector()->StrVec());
   for (int pos = 0; pos < nr_of_levels; pos++)
@@ -107,5 +107,6 @@ TEST_F(FactorTest, FactorRead)
   FstStore fstStore(GetFilePath("medium_factor2.fst"));
 
   // Read fst file
-  fstStore.fstRead(*tableReader, columnSelection, 1, -1, columnFactory, keyIndex, selectedCols);
+  std::unique_ptr<StringColumn> col_names(new StringColumn());
+  fstStore.fstRead(*tableReader, columnSelection, 1, -1, columnFactory, keyIndex, selectedCols, &*col_names);
 }

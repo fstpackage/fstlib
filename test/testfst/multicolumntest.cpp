@@ -44,7 +44,8 @@ TEST_F(MultiColumnTest, ReadUncompressed)
 	std::vector<int> keyIndex;
 
 	// Read uncompressed file
-	fstStore.fstRead(table, nullptr, 1, 10000, &columnFactory, keyIndex, &selectedCols);
+	std::unique_ptr<StringColumn> col_names(new StringColumn());
+	fstStore.fstRead(table, nullptr, 1, 10000, &columnFactory, keyIndex, &selectedCols, col_names.get());
 }
 
 
@@ -59,7 +60,8 @@ TEST_F(MultiColumnTest, Lowcompression)
   std::vector<int> keyIndex;
 
   // Read uncompressed file
-  fstStore.fstRead(table, nullptr, 1, 10000, &columnFactory, keyIndex, &selectedCols);
+  std::unique_ptr<StringColumn> col_names(new StringColumn());
+  fstStore.fstRead(table, nullptr, 1, 10000, &columnFactory, keyIndex, &selectedCols, col_names.get());
   table.SetColumnNames(selectedCols);
 
   // Low compression
@@ -79,7 +81,8 @@ TEST_F(MultiColumnTest, Highcompression)
   std::vector<int> keyIndex;
 
   // Read uncompressed file
-  fstStore.fstRead(table, nullptr, 1, 10000, &columnFactory, keyIndex, &selectedCols);
+  std::unique_ptr<StringColumn> col_names(new StringColumn());
+  fstStore.fstRead(table, nullptr, 1, 10000, &columnFactory, keyIndex, &selectedCols, col_names.get());
   table.SetColumnNames(selectedCols);
 
   // High compression
@@ -102,7 +105,8 @@ TEST_F(MultiColumnTest, PerColumnCompressed)
   IStringArray* columnSelection = new StringArray(colNames);
 
   // Read uncompressed file
-  fstStore.fstRead(table, columnSelection, 1, 10000, &columnFactory, keyIndex, &selectedCols);
+  std::unique_ptr<StringColumn> col_names(new StringColumn());
+  fstStore.fstRead(table, columnSelection, 1, 10000, &columnFactory, keyIndex, &selectedCols, col_names.get());
   table.SetColumnNames(selectedCols);
 
   // Test equality tables read from different compression settings

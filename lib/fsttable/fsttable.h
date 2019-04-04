@@ -42,7 +42,7 @@ public:
 class StringColumn : public IStringColumn
 {
 	std::shared_ptr<StringVector> shared_data;
-  StringEncoding string_encoding;
+	StringEncoding string_encoding;
 
 public:
 	StringColumn()
@@ -168,7 +168,7 @@ class FactorVector : public DestructableObject
 {
 	int* data = nullptr;
 	StringColumn* levels;
-  unsigned long long length;
+	unsigned long long length;
 
 public:
 	FactorVector(unsigned long long length)
@@ -204,6 +204,7 @@ class IntVectorAdapter : public IIntegerColumn
 	std::shared_ptr<IntVector> shared_data;
   FstColumnAttribute columnAttribute;
   short int scale;
+  std::string annotation;
 
 public:
 	IntVectorAdapter(unsigned long long length, FstColumnAttribute columnAttribute, short int scale)
@@ -235,6 +236,11 @@ public:
 	std::shared_ptr<DestructableObject> DataPtr() const
 	{
 		return shared_data;
+	}
+
+  void Annotate(std::string annotation)
+	{
+    this->annotation = annotation;
 	}
 };
 
@@ -332,9 +338,12 @@ class FactorVectorAdapter : public IFactorColumn
 	std::shared_ptr<FactorVector> shared_data;
 
 public:
-	FactorVectorAdapter(unsigned long long length)
+	FactorVectorAdapter(unsigned long long length, unsigned long long nr_of_levels, FstColumnAttribute columnAttribute)
 	{
 		shared_data = std::make_shared<FactorVector>(length);
+
+		StringColumn* levels = shared_data->Levels();
+		levels->AllocateVec(nr_of_levels);
 	}
 
 	~FactorVectorAdapter()
@@ -879,6 +888,14 @@ public:
 	{
 		return nrOfRows;
 	}
+
+  void SetColNames(IStringArray* col_names)
+	{
+    for (int colNr = 0; colNr < this->colNames->size(); colNr++)
+    {
+      (*colNames)[colNr] = col_names->GetElement(colNr);
+    }
+  }
 };
 
 

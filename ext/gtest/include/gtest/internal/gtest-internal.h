@@ -587,8 +587,8 @@ GTEST_DISABLE_MSC_WARNINGS_POP_()  //  4251
 // returns NULL if no comma is found in 'str'.
 inline const char* SkipComma(const char* str) {
   const char* comma = strchr(str, ',');
-  if (comma == nullptr) {
-    return nullptr;
+  if (comma == NULL) {
+    return NULL;
   }
   while (IsSpace(*(++comma))) {}
   return comma;
@@ -598,7 +598,7 @@ inline const char* SkipComma(const char* str) {
 // the entire string if it contains no comma.
 inline std::string GetPrefixUntilComma(const char* str) {
   const char* comma = strchr(str, ',');
-  return comma == nullptr ? str : std::string(str, comma);
+  return comma == NULL ? str : std::string(str, comma);
 }
 
 // Splits a given string on a given delimiter, populating a given
@@ -667,7 +667,7 @@ class TypeParameterizedTest {
             .c_str(),
         StripTrailingSpaces(GetPrefixUntilComma(test_names)).c_str(),
         GetTypeName<Type>().c_str(),
-        nullptr,  // No value parameter.
+        NULL,  // No value parameter.
         code_location, GetTypeId<FixtureClass>(), TestClass::SetUpTestCase,
         TestClass::TearDownTestCase, new TestFactoryImpl<TestClass>);
 
@@ -942,6 +942,7 @@ struct IsAProtocolMessage
 // IsContainerTest(typename C::const_iterator*) and
 // IsContainerTest(...) doesn't work with Visual Age C++ and Sun C++.
 typedef int IsContainer;
+#if GTEST_LANG_CXX11
 template <class C,
           class Iterator = decltype(::std::declval<const C&>().begin()),
           class = decltype(::std::declval<const C&>().end()),
@@ -951,6 +952,14 @@ template <class C,
 IsContainer IsContainerTest(int /* dummy */) {
   return 0;
 }
+#else
+template <class C>
+IsContainer IsContainerTest(int /* dummy */,
+                            typename C::iterator* /* it */ = NULL,
+                            typename C::const_iterator* /* const_it */ = NULL) {
+  return 0;
+}
+#endif  // GTEST_LANG_CXX11
 
 typedef char IsNotContainer;
 template <class C>
@@ -971,7 +980,7 @@ struct IsHashTable {
   static char test(...);
 
  public:
-  static const bool value = sizeof(test<T>(nullptr, nullptr)) == sizeof(int);
+  static const bool value = sizeof(test<T>(0, 0)) == sizeof(int);
 };
 
 template <typename T>
@@ -1005,8 +1014,12 @@ struct IsRecursiveContainerImpl<C, true, false> : public false_type {};
 
 template <typename C>
 struct IsRecursiveContainerImpl<C, true, true> {
+  #if GTEST_LANG_CXX11
   typedef typename IteratorTraits<typename C::const_iterator>::value_type
       value_type;
+#else
+  typedef typename IteratorTraits<typename C::iterator>::value_type value_type;
+#endif
   typedef is_same<value_type, C> type;
 };
 
@@ -1176,112 +1189,6 @@ class NativeArray {
   GTEST_DISALLOW_ASSIGN_(NativeArray);
 };
 
-// Backport of std::index_sequence.
-template <size_t... Is>
-struct IndexSequence {
-  using type = IndexSequence;
-};
-
-// Double the IndexSequence, and one if plus_one is true.
-template <bool plus_one, typename T, size_t sizeofT>
-struct DoubleSequence;
-template <size_t... I, size_t sizeofT>
-struct DoubleSequence<true, IndexSequence<I...>, sizeofT> {
-  using type = IndexSequence<I..., (sizeofT + I)..., 2 * sizeofT>;
-};
-template <size_t... I, size_t sizeofT>
-struct DoubleSequence<false, IndexSequence<I...>, sizeofT> {
-  using type = IndexSequence<I..., (sizeofT + I)...>;
-};
-
-// Backport of std::make_index_sequence.
-// It uses O(ln(N)) instantiation depth.
-template <size_t N>
-struct MakeIndexSequence
-    : DoubleSequence<N % 2 == 1, typename MakeIndexSequence<N / 2>::type,
-                     N / 2>::type {};
-
-template <>
-struct MakeIndexSequence<0> : IndexSequence<> {};
-
-// FIXME: This implementation of ElemFromList is O(1) in instantiation depth,
-// but it is O(N^2) in total instantiations. Not sure if this is the best
-// tradeoff, as it will make it somewhat slow to compile.
-template <typename T, size_t, size_t>
-struct ElemFromListImpl {};
-
-template <typename T, size_t I>
-struct ElemFromListImpl<T, I, I> {
-  using type = T;
-};
-
-// Get the Nth element from T...
-// It uses O(1) instantiation depth.
-template <size_t N, typename I, typename... T>
-struct ElemFromList;
-
-template <size_t N, size_t... I, typename... T>
-struct ElemFromList<N, IndexSequence<I...>, T...>
-    : ElemFromListImpl<T, N, I>... {};
-
-template <typename... T>
-class FlatTuple;
-
-template <typename Derived, size_t I>
-struct FlatTupleElemBase;
-
-template <typename... T, size_t I>
-struct FlatTupleElemBase<FlatTuple<T...>, I> {
-  using value_type =
-      typename ElemFromList<I, typename MakeIndexSequence<sizeof...(T)>::type,
-                            T...>::type;
-  FlatTupleElemBase() = default;
-  explicit FlatTupleElemBase(value_type t) : value(std::move(t)) {}
-  value_type value;
-};
-
-template <typename Derived, typename Idx>
-struct FlatTupleBase;
-
-template <size_t... Idx, typename... T>
-struct FlatTupleBase<FlatTuple<T...>, IndexSequence<Idx...>>
-    : FlatTupleElemBase<FlatTuple<T...>, Idx>... {
-  using Indices = IndexSequence<Idx...>;
-  FlatTupleBase() = default;
-  explicit FlatTupleBase(T... t)
-      : FlatTupleElemBase<FlatTuple<T...>, Idx>(std::move(t))... {}
-};
-
-// Analog to std::tuple but with different tradeoffs.
-// This class minimizes the template instantiation depth, thus allowing more
-// elements that std::tuple would. std::tuple has been seen to require an
-// instantiation depth of more than 10x the number of elements in some
-// implementations.
-// FlatTuple and ElemFromList are not recursive and have a fixed depth
-// regardless of T...
-// MakeIndexSequence, on the other hand, it is recursive but with an
-// instantiation depth of O(ln(N)).
-template <typename... T>
-class FlatTuple
-    : private FlatTupleBase<FlatTuple<T...>,
-                            typename MakeIndexSequence<sizeof...(T)>::type> {
-  using Indices = typename FlatTuple::FlatTupleBase::Indices;
-
- public:
-  FlatTuple() = default;
-  explicit FlatTuple(T... t) : FlatTuple::FlatTupleBase(std::move(t)...) {}
-
-  template <size_t I>
-  const typename ElemFromList<I, Indices, T...>::type& Get() const {
-    return static_cast<const FlatTupleElemBase<FlatTuple, I>*>(this)->value;
-  }
-
-  template <size_t I>
-  typename ElemFromList<I, Indices, T...>::type& Get() {
-    return static_cast<FlatTupleElemBase<FlatTuple, I>*>(this)->value;
-  }
-};
-
 }  // namespace internal
 }  // namespace testing
 
@@ -1301,10 +1208,7 @@ class FlatTuple
 #define GTEST_SUCCESS_(message) \
   GTEST_MESSAGE_(message, ::testing::TestPartResult::kSuccess)
 
-#define GTEST_SKIP_(message) \
-  return GTEST_MESSAGE_(message, ::testing::TestPartResult::kSkip)
-
-// Suppress MSVC warning 4072 (unreachable code) for the code following
+// Suppress MSVC warning 4702 (unreachable code) for the code following
 // statement if it returns or throws (or doesn't return or throw in some
 // situations).
 #define GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement) \
@@ -1400,42 +1304,27 @@ class FlatTuple
   test_case_name##_##test_name##_Test
 
 // Helper macro for defining tests.
-#define GTEST_TEST_(test_case_name, test_name, parent_class, parent_id)       \
-  class GTEST_TEST_CLASS_NAME_(test_case_name, test_name)                     \
-      : public parent_class {                                                 \
-   public:                                                                    \
-    GTEST_TEST_CLASS_NAME_(test_case_name, test_name)() {}                    \
-                                                                              \
-   private:                                                                   \
-    virtual void TestBody();                                                  \
-    static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;     \
-    GTEST_DISALLOW_COPY_AND_ASSIGN_(GTEST_TEST_CLASS_NAME_(test_case_name,    \
-                                                           test_name));       \
-  };                                                                          \
-                                                                              \
-  ::testing::TestInfo* const GTEST_TEST_CLASS_NAME_(test_case_name,           \
-                                                    test_name)::test_info_ =  \
-      ::testing::internal::MakeAndRegisterTestInfo(                           \
-          #test_case_name, #test_name, nullptr, nullptr,                      \
-          ::testing::internal::CodeLocation(__FILE__, __LINE__), (parent_id), \
-          parent_class::SetUpTestCase, parent_class::TearDownTestCase,        \
-          new ::testing::internal::TestFactoryImpl<GTEST_TEST_CLASS_NAME_(    \
-              test_case_name, test_name)>);                                   \
-  void GTEST_TEST_CLASS_NAME_(test_case_name, test_name)::TestBody()
+#define GTEST_TEST_(test_case_name, test_name, parent_class, parent_id)\
+class GTEST_TEST_CLASS_NAME_(test_case_name, test_name) : public parent_class {\
+ public:\
+  GTEST_TEST_CLASS_NAME_(test_case_name, test_name)() {}\
+ private:\
+  virtual void TestBody();\
+  static ::testing::TestInfo* const test_info_ GTEST_ATTRIBUTE_UNUSED_;\
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(\
+      GTEST_TEST_CLASS_NAME_(test_case_name, test_name));\
+};\
+\
+::testing::TestInfo* const GTEST_TEST_CLASS_NAME_(test_case_name, test_name)\
+  ::test_info_ =\
+    ::testing::internal::MakeAndRegisterTestInfo(\
+        #test_case_name, #test_name, NULL, NULL, \
+        ::testing::internal::CodeLocation(__FILE__, __LINE__), \
+        (parent_id), \
+        parent_class::SetUpTestCase, \
+        parent_class::TearDownTestCase, \
+        new ::testing::internal::TestFactoryImpl<\
+            GTEST_TEST_CLASS_NAME_(test_case_name, test_name)>);\
+void GTEST_TEST_CLASS_NAME_(test_case_name, test_name)::TestBody()
 
-// Internal Macro to mark an API deprecated, for googletest usage only
-// Usage: class GTEST_INTERNAL_DEPRECATED(message) MyClass or
-// GTEST_INTERNAL_DEPRECATED(message) <return_type> myFunction(); Every usage of
-// a deprecated entity will trigger a warning when compiled with
-// `-Wdeprecated-declarations` option (clang, gcc, any __GNUC__ compiler).
-// For msvc /W3 option will need to be used
-// Note that for 'other' compilers this macro evaluates to nothing to prevent
-// compilations errors.
-#if defined(_MSC_VER)
-#define GTEST_INTERNAL_DEPRECATED(message) __declspec(deprecated(message))
-#elif defined(__GNUC__)
-#define GTEST_INTERNAL_DEPRECATED(message) __attribute__((deprecated(message)))
-#else
-#define GTEST_INTERNAL_DEPRECATED(message)
-#endif
 #endif  // GTEST_INCLUDE_GTEST_INTERNAL_GTEST_INTERNAL_H_
