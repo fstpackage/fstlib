@@ -18,7 +18,7 @@ set(libarrow_SRCS
 	arrow/util/logging.cc
 )
 
-add_definitions(-DARROW_EXPORTING)
+add_definitions(-DARROW_EXPORTING -DARROW_EXTRA_ERROR_CONTEXT)
 
 
 # declare LZ4 library
