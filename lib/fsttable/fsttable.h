@@ -61,9 +61,9 @@ public:
     this->string_encoding = stringEncoding;
 	}
 
-  StringEncoding GetEncoding()
+	StringEncoding GetEncoding()
 	{
-    return string_encoding;
+	    return string_encoding;
 	}
 
 	void BufferToVec(unsigned long long nrOfElements, unsigned long long startElem, unsigned long long endElem, unsigned long long vecOffset,

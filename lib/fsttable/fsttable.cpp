@@ -10,7 +10,7 @@ using namespace std;
 
 
 // Inherited via IStringColumn
-void StringColumn::AllocateVec(unsigned long long vecLength)
+void StringColumn::AllocateVec(uint64_t vecLength)
 {
 	shared_data = make_shared<StringVector>(vecLength);
 }

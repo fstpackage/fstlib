@@ -32,7 +32,7 @@ class IColumnFactory
 {
 public:
   virtual ~IColumnFactory() {};
-  virtual IFactorColumn*  CreateFactorColumn(uint64_t nrOfRows, int nrOfLevels, FstColumnAttribute columnAttribute) = 0;
+  virtual IFactorColumn*  CreateFactorColumn(uint64_t nrOfRows, uint64_t nrOfLevels, FstColumnAttribute columnAttribute) = 0;
   virtual ILogicalColumn* CreateLogicalColumn(uint64_t nrOfRows, FstColumnAttribute columnAttribute) = 0;
   virtual IDoubleColumn* CreateDoubleColumn(uint64_t nrOfRows, FstColumnAttribute columnAttribute, short int scale) = 0;
   virtual IIntegerColumn* CreateIntegerColumn(uint64_t nrOfRows, FstColumnAttribute columnAttribute, short int scale) = 0;
