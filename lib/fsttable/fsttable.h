@@ -25,7 +25,7 @@ class StringVector : public DestructableObject
 	std::vector<std::string>* data;
 
 public:
-	StringVector(unsigned long long vecLength)
+	StringVector(uint64_t vecLength)
 	{
 		this->data = new std::vector<std::string>(vecLength);
 	}
@@ -54,16 +54,16 @@ public:
 	{
 	}
 
-	void AllocateVec(unsigned long long vecLength);
+	void AllocateVec(uint64_t vecLength);
 
 	void SetEncoding(StringEncoding stringEncoding)
 	{
     this->string_encoding = stringEncoding;
 	}
 
-  StringEncoding GetEncoding()
+	StringEncoding GetEncoding()
 	{
-    return string_encoding;
+	    return string_encoding;
 	}
 
 	void BufferToVec(unsigned long long nrOfElements, unsigned long long startElem, unsigned long long endElem, unsigned long long vecOffset,
@@ -80,7 +80,7 @@ class IntVector : public DestructableObject
 	int* data;
 
 public:
-	IntVector(unsigned long long length)
+	IntVector(uint64_t length)
 	{
 		this->data = new int[length];
 	}
@@ -102,7 +102,7 @@ class ByteVector : public DestructableObject
 	char* data;
 
 public:
-	ByteVector(unsigned long long length)
+	ByteVector(uint64_t length)
 	{
 		this->data = new char[length];
 	}
@@ -124,7 +124,7 @@ class LongVector : public DestructableObject
 	long long* data;
 
 public:
-	LongVector(unsigned long long length)
+	LongVector(uint64_t length)
 	{
 		this->data = new long long[length];
 	}
@@ -146,7 +146,7 @@ class DoubleVector : public DestructableObject
 	double* data;
 
 public:
-	DoubleVector(unsigned long long length)
+	DoubleVector(uint64_t length)
 	{
 		this->data = new double[length];
 	}
@@ -171,7 +171,7 @@ class FactorVector : public DestructableObject
 	unsigned long long length;
 
 public:
-	FactorVector(unsigned long long length)
+	FactorVector(uint64_t length)
 	{
 		this->length = length;
 		if (length > 0) this->data = new int[length];
@@ -207,11 +207,11 @@ class IntVectorAdapter : public IIntegerColumn
   std::string annotation;
 
 public:
-	IntVectorAdapter(unsigned long long length, FstColumnAttribute columnAttribute, short int scale)
+	IntVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
 		shared_data = std::make_shared<IntVector>(length);
-    this->columnAttribute = columnAttribute;
-    this->scale = scale;
+	    this->columnAttribute = columnAttribute;
+	    this->scale = scale;
 	}
 
 	~IntVectorAdapter()
@@ -250,7 +250,7 @@ class ByteVectorAdapter : public IByteColumn
 	std::shared_ptr<ByteVector> shared_data;
 
 public:
-	ByteVectorAdapter(unsigned long long length, FstColumnAttribute columnAttribute = FstColumnAttribute::NONE)
+	ByteVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute = FstColumnAttribute::NONE)
 	{
 		shared_data = std::make_shared<ByteVector>(length);
 	}
@@ -278,11 +278,11 @@ class Int64VectorAdapter : public IInt64Column
   short int scale;
 
 public:
-	Int64VectorAdapter(unsigned long long length, FstColumnAttribute columnAttribute, short int scale)
+	Int64VectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
 		shared_data = std::make_shared<LongVector>(length);
 		this->columnAttribute = columnAttribute;
-    this->scale = scale;
+	    this->scale = scale;
 	}
 
 	~Int64VectorAdapter()
@@ -312,7 +312,7 @@ class LogicalVectorAdapter : public ILogicalColumn
 	std::shared_ptr<IntVector> shared_data;
 
 public:
-	LogicalVectorAdapter(unsigned long long length)
+	LogicalVectorAdapter(uint64_t length)
 	{
 		shared_data = std::make_shared<IntVector>(length);
 	}
@@ -338,7 +338,7 @@ class FactorVectorAdapter : public IFactorColumn
 	std::shared_ptr<FactorVector> shared_data;
 
 public:
-	FactorVectorAdapter(unsigned long long length, unsigned long long nr_of_levels, FstColumnAttribute columnAttribute)
+	FactorVectorAdapter(uint64_t length, uint64_t nr_of_levels, FstColumnAttribute columnAttribute)
 	{
 		shared_data = std::make_shared<FactorVector>(length);
 
@@ -375,11 +375,11 @@ class DoubleVectorAdapter : public IDoubleColumn
   short int scale;
 
 public:
-	DoubleVectorAdapter(unsigned long long length, FstColumnAttribute columnAttribute, short int scale)
+	DoubleVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
 		shared_data = std::make_shared<DoubleVector>(length);
 		this->columnAttribute = columnAttribute;
-    this->scale = scale;
+	    this->scale = scale;
 	}
 
 	~DoubleVectorAdapter()
@@ -430,7 +430,7 @@ public:
 		}
 	}
 
-	std::string GetStringElement(unsigned int index)
+	std::string GetStringElement(uint64_t index)
 	{
 		return strVec->at(index);
 	}
@@ -445,7 +445,7 @@ public:
 		strVec = &strVector;
 	}
 
-	void AllocateArray(unsigned int vecLength)
+	void AllocateArray(uint64_t vecLength)
 	{
 		if (!external)
 		{
@@ -455,31 +455,31 @@ public:
 		strVec = new std::vector<std::string>(vecLength);
 	}
 
-	void SetElement(unsigned int elementNr, const char * str)
+	void SetElement(uint64_t elementNr, const char * str)
 	{
 		std::string strElem(str);
 		(*strVec)[elementNr] = strElem;
 	}
 
-	void SetElement(unsigned int elementNr, const char * str, unsigned int strLen)
+	void SetElement(uint64_t elementNr, const char * str, unsigned int strLen)
 	{
 		std::string strElem(str, strLen);
 		(*strVec)[elementNr] = strElem;
 	}
 
-	const char* GetElement(unsigned int elementNr)
+	const char* GetElement(uint64_t elementNr)
 	{
 		return (*strVec)[elementNr].c_str();
 	}
 
-	unsigned int Length()
+	uint64_t Length()
 	{
-		return (int) strVec->size();
+		return (uint64_t) strVec->size();
 	}
 
-  void SetEncoding(StringEncoding string_encoding)
+	void SetEncoding(StringEncoding string_encoding)
 	{
-    this->string_encoding = string_encoding;
+		this->string_encoding = string_encoding;
 	}
 };
 
@@ -509,7 +509,7 @@ public:
 
 	~BlockWriter() { delete[] heapBuf; }
 
-	void SetBuffersFromVec(unsigned long long startCount, unsigned long long endCount)
+	void SetBuffersFromVec(uint64_t startCount, uint64_t endCount)
 	{
 		// Determine string lengths
 		// unsigned int startCount = block * BLOCKSIZE_CHAR;

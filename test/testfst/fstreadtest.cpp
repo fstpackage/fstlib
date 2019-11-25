@@ -86,11 +86,12 @@ TEST_F(FstReadTest, WrongFormat)
 //TEST_F(FstReadTest, FromFileRead)
 //{
 //	// Define column name
-//	vector<std::string> cols = { "Raw" };
+//	vector<std::string> cols = { "X" };
 //	columnSelection = new StringArray(cols);
 //
-//	FstStore fstStore(GetFilePath("data1.fst"));
+//	FstStore fstStore("C:\\Programming\\repositories\\fst_world\\fst_algorithms\\arbitrary.fst");
 //
 //	// Read fst file
-//	fstStore.fstRead(*tableReader, columnSelection, 1, 30, columnFactory, keyIndex, selectedCols);
+//	std::unique_ptr<StringColumn> col_names(new StringColumn());
+//	fstStore.fstRead(*tableReader, columnSelection, 1, -1, columnFactory, keyIndex, selectedCols, col_names.get());
 //}

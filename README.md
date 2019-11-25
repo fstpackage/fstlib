@@ -1,4 +1,6 @@
+
 [![Build Status](https://travis-ci.org/fstpackage/fstlib.svg?branch=develop)](https://travis-ci.org/fstpackage/fstlib)
+[![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 # The fst format and fstlib library
 
