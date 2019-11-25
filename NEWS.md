@@ -8,7 +8,6 @@
 
 ## Enhancements
 
-## Bugs solved
-
-## Documentation
-
+* Error on missing column outputs columns name
+* Allow 64-bit size for number of factor levels
+* Column factory uses 64 bit length values
