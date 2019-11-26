@@ -69,7 +69,7 @@ public:
 	void BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64_t endElem, uint64_t vecOffset,
     unsigned int* sizeMeta, char* buf);
 
-	const char* GetElement(unsigned long long elementNr);
+	const char* GetElement(uint64_t elementNr);
 
 	std::shared_ptr<StringVector> StrVector() const { return shared_data; }
 };
