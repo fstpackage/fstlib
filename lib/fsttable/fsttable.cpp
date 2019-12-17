@@ -15,8 +15,8 @@ void StringColumn::AllocateVec(uint64_t vecLength)
 	shared_data = make_shared<StringVector>(vecLength);
 }
 
-void StringColumn::BufferToVec(unsigned long long nrOfElements, unsigned long long startElem, unsigned long long endElem,
-  unsigned long long vecOffset, unsigned int* sizeMeta, char* buf)
+void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64_t endElem,
+	uint64_t vecOffset, unsigned int* sizeMeta, char* buf)
 {
 	unsigned int nrOfNAInts = 1 + nrOfElements / 32;  // last bit is NA flag
 	unsigned int* bitsNA = &sizeMeta[nrOfElements];
@@ -165,7 +165,7 @@ void StringColumn::BufferToVec(unsigned long long nrOfElements, unsigned long lo
 	}
 }
 
-const char * StringColumn::GetElement(unsigned long long elementNr)
+const char * StringColumn::GetElement(uint64_t elementNr)
 {
 	return (*shared_data->StrVec())[elementNr].c_str();
 }
