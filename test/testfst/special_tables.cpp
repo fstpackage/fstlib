@@ -43,8 +43,8 @@ TEST_F(SpecialTablesTest, ZeroRowsInt)
 	IntVectorAdapter intVec(nrOfRows, FstColumnAttribute::NONE, FstScale::UNIT);
 	fstTable.SetIntegerColumn(&intVec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows1.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows2.fst"), 50);
 }
 
 
@@ -60,8 +60,8 @@ TEST_F(SpecialTablesTest, ZeroRowsInt64)
 	Int64VectorAdapter int64Vec(nrOfRows, FstColumnAttribute::NONE, FstScale::UNIT);
 	fstTable.SetInt64Column(&int64Vec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows3.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows4.fst"), 50);
 }
 
 
@@ -80,8 +80,8 @@ TEST_F(SpecialTablesTest, ZeroRowsString)
 	strColumn.SetEncoding(StringEncoding::LATIN1);
 	fstTable.SetStringColumn(static_cast<IStringColumn*>(&strColumn), 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows5.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows6.fst"), 50);
 }
 
 
@@ -97,8 +97,8 @@ TEST_F(SpecialTablesTest, ZeroRowsLogical)
 	LogicalVectorAdapter logicalVec(nrOfRows);
 	fstTable.SetLogicalColumn(&logicalVec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows7.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows8.fst"), 50);
 }
 
 
@@ -114,8 +114,8 @@ TEST_F(SpecialTablesTest, ZeroRowsByte)
 	ByteVectorAdapter byteVec(nrOfRows);
 	fstTable.SetByteColumn(&byteVec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows9.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows10.fst"), 50);
 }
 
 
@@ -133,8 +133,8 @@ TEST_F(SpecialTablesTest, ZeroRowsFactorNA)
 
 	fstTable.SetFactorColumn(&factorVecNA, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows11.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows12.fst"), 50);
 }
 
 
@@ -160,8 +160,8 @@ TEST_F(SpecialTablesTest, ZeroRowsFactor)
 
 	fstTable.SetFactorColumn(&factorVec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows13.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows14.fst"), 50);
 }
 
 
@@ -179,6 +179,6 @@ TEST_F(SpecialTablesTest, ZeroRowsDouble)
 
 	fstTable.SetDoubleColumn(&doubleVec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
-	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows15.fst"), 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows16.fst"), 50);
 }
