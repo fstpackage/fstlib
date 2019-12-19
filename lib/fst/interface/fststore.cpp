@@ -854,7 +854,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
     throw(runtime_error("Row selection is out of range."));
   }
 
-  long long length = max(nrOfRows - firstRow, 0ULL);
+  long long length = max(static_cast<long long>(nrOfRows) - firstRow, 0LL);
 
   // Determine vector length
   if (endRow != -1)
