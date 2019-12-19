@@ -338,7 +338,7 @@ public:
 
 class FactorVectorAdapter : public IFactorColumn
 {
-	std::shared_ptr<FactorVector> shared_data = nullptr;
+	std::shared_ptr<FactorVector> shared_data;
 
 public:
 	FactorVectorAdapter(uint64_t length, uint64_t nr_of_levels, FstColumnAttribute columnAttribute)
