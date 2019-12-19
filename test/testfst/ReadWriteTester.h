@@ -39,14 +39,14 @@ public:
 		return res;
 	}
 
-	static int CompareStringVectors(vector<std::string>* stringVector1, vector<std::string>* stringVector2, int from, int size)
+	static int CompareStringVectors(vector<std::string>* stringVector1, vector<std::string>* stringVector2, size_t from, size_t size)
 	{
 		if (size == 0) return 0;
 
-		vector<std::string>::iterator strIt2 = stringVector2->begin() + from;
-		for (vector<std::string>::iterator strIt = stringVector1->begin(); strIt != stringVector1->end(); ++strIt)
+		auto strIt2 = stringVector2->begin() + from;
+		for (auto strIt = stringVector1->begin(); strIt != stringVector1->end(); ++strIt)
 		{
-			int res = strIt->compare(*strIt2);
+			const int res = strIt->compare(*strIt2);
 			if (res != 0) return res;
 			++strIt2;
 		}
@@ -146,8 +146,8 @@ public:
 
 			case FstColumnType::FACTOR:
 			{
-				FactorVector* factVecRead = static_cast<FactorVector*>(&(*columnRead));
-				FactorVector* factVecOrig = static_cast<FactorVector*>(&(*columnOrig));
+				auto factVecRead = static_cast<FactorVector*>(&(*columnRead));
+				auto factVecOrig = static_cast<FactorVector*>(&(*columnOrig));
 
 				int res1 = std::memcmp(factVecRead->Data(), &(factVecOrig->Data()[from]), 4 * size);
 				int res2 = CompareStringVectors(factVecRead->Levels()->StrVector()->StrVec(), factVecOrig->Levels()->StrVector()->StrVec(), 0, factVecRead->Levels()->StrVector()->StrVec()->size());
@@ -159,8 +159,8 @@ public:
 
 			case FstColumnType::CHARACTER:
 			{
-				StringVector* strVecRead = static_cast<StringVector*>(&(*columnRead));
-				StringVector* strVecOrig = static_cast<StringVector*>(&(*columnOrig));
+				auto strVecRead = static_cast<StringVector*>(&(*columnRead));
+				auto strVecOrig = static_cast<StringVector*>(&(*columnOrig));
 
 				int res2 = CompareStringVectors(strVecRead->StrVec(), strVecOrig->StrVec(), from, size);
 
@@ -179,8 +179,8 @@ public:
 	}
 
 	// from parameter is one-based
-	static void CompareColumns(int nrOfRows, FstTable &subSet, StringArray &selectedCols, FstTable &tableRead,
-    unsigned long long from = 1, unsigned long long size = -1)
+	static void CompareColumns(unsigned long long nrOfRows, FstTable &subSet, StringArray &selectedCols, FstTable &tableRead,
+	    unsigned long long from = 1, unsigned long long size = -1)
 	{
 		if (size == -1) size = 1 + nrOfRows - from;
 
@@ -216,7 +216,7 @@ public:
 		{
 			// Subset table
 			std::vector<std::string> colName = { *colNameIt };
-			unsigned int nrOfRows = fstTable.NrOfRows();
+			unsigned long long nrOfRows = fstTable.NrOfRows();
 			FstTable* subSet = fstTable.SubSet(colName, 1, nrOfRows);
 
 			// Write single column table to disk
@@ -228,25 +228,23 @@ public:
 			StringArray selectedCols;
 			FstTable tableRead;
 
-			//std::unique_ptr<StringColumn> col_names(new StringColumn());
+			std::unique_ptr<StringColumn> col_names(new StringColumn());
 			fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
 
-			//std::unique_ptr<StringColumn> col_names2(new StringColumn());
-			//fstStore.fstMeta(&columnFactory, &*col_names2);
+			std::unique_ptr<StringColumn> col_names2(new StringColumn());
+			fstStore.fstMeta(&columnFactory, &*col_names2);
 
-			//CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead);
+			CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead);
 
-			//if (nrOfRows > 2)
-			//{
-			//	FstTable tableRead2;
-			//	std::unique_ptr<StringColumn> col_names(new StringColumn());
-			//	fstStore.fstRead(tableRead2, nullptr, nrOfRows - 5, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
-			//	CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead2, nrOfRows - 5, -1);
-			//}
+			if (nrOfRows > 2)
+			{
+				FstTable tableRead2;
+				std::unique_ptr<StringColumn> col_names(new StringColumn());
+				fstStore.fstRead(tableRead2, nullptr, nrOfRows - 5, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
+				CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead2, nrOfRows - 5, static_cast<unsigned long long>(-1));
+			}
 
-			//// Fix manual column name assignment!
-
-
+			// Fix manual column name assignment!
 			delete subSet;
 		}
 	}

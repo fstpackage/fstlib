@@ -338,7 +338,7 @@ public:
 
 class FactorVectorAdapter : public IFactorColumn
 {
-	std::shared_ptr<FactorVector> shared_data = nullptr;
+	std::shared_ptr<FactorVector> shared_data;
 
 public:
 	FactorVectorAdapter(uint64_t length, uint64_t nr_of_levels, FstColumnAttribute columnAttribute)
@@ -516,8 +516,8 @@ public:
 	{
 		// Determine string lengths
 		// unsigned int startCount = block * BLOCKSIZE_CHAR;
-		unsigned int nrOfElements = endCount - startCount;  // the string at position endCount is not included
-		unsigned int nrOfNAInts = 1 + nrOfElements / 32;  // add 1 bit for NA present flag
+		const uint64_t nrOfElements = endCount - startCount;  // the string at position endCount is not included
+		const uint64_t nrOfNAInts = 1 + nrOfElements / 32;  // add 1 bit for NA present flag
 
 		unsigned int totSize = 0;
 		//unsigned int hasNA = 0;
