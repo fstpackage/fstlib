@@ -119,17 +119,33 @@ TEST_F(SpecialTablesTest, ZeroRowsByte)
 }
 
 
-TEST_F(SpecialTablesTest, ZeroRowsFactor)
+TEST_F(SpecialTablesTest, ZeroRowsFactorNA)
 {
 	int nrOfRows = 0;
 	FstTable fstTable(nrOfRows);
-	fstTable.InitTable(2, nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
 
-	vector<std::string> colNames{ "factorNA", "factor" };
+	vector<std::string> colNames{ "factorNA" };
 	fstTable.SetColumnNames(colNames);
 
 	// factor column without levels
 	FactorVectorAdapter factorVecNA(nrOfRows, 0, FstColumnAttribute::FACTOR_BASE);
+
+	fstTable.SetFactorColumn(&factorVecNA, 0);
+
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+}
+
+
+TEST_F(SpecialTablesTest, ZeroRowsFactor)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
+
+	vector<std::string> colNames{ "factor" };
+	fstTable.SetColumnNames(colNames);
 
 	// factor column with some levels but no data
 	int nr_of_levels = 128;
@@ -142,12 +158,12 @@ TEST_F(SpecialTablesTest, ZeroRowsFactor)
 		levelVec[pos] = to_string(pos);
 	}
 
-	fstTable.SetFactorColumn(&factorVecNA, 0);
-	fstTable.SetFactorColumn(&factorVec, 1);
+	fstTable.SetFactorColumn(&factorVec, 0);
 
 	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
 	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
 }
+
 
 TEST_F(SpecialTablesTest, ZeroRowsDouble)
 {
