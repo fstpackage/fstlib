@@ -54,6 +54,14 @@ public:
 		return 0;
 	}
 
+	static bool CompareLogicalVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
+	{
+		IntVector* intVecRead = static_cast<IntVector*>(&(*columnRead));
+		IntVector* intVecOrig = static_cast<IntVector*>(&(*columnOrig));
+
+		return std::memcmp(intVecRead->Data(), &(intVecOrig->Data()[from]), 4 * size) == 0;
+	}
+
 	static bool CompareIntVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
 	{
 		IntVector* intVecRead = static_cast<IntVector*>(&(*columnRead));
@@ -110,6 +118,11 @@ public:
 
 		switch (type)
 		{
+		case FstColumnType::BOOL_2: {
+				res = CompareLogicalVecs(columnRead, columnOrig, from, size);
+				break;
+			}
+
 			case FstColumnType::INT_32:			{
 				res = CompareIntVecs(columnRead, columnOrig, from, size);
 				break;
@@ -187,7 +200,7 @@ public:
 
 		EXPECT_EQ(selectedCols.GetStringElement(0), resColName2);
 		EXPECT_EQ(type1, type2);
-    EXPECT_EQ(scale1, scale2);
+        EXPECT_EQ(scale1, scale2);
 
 		bool res = CompareColVecs(column1, column2, type1, from - 1, size);
 		EXPECT_TRUE(res);
