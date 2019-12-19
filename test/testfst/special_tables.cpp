@@ -160,7 +160,7 @@ TEST_F(SpecialTablesTest, ZeroRowsFactor)
 
 	fstTable.SetFactorColumn(&factorVec, 0);
 
-	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows13.fst"), 0);
+	//ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows13.fst"), 0);
 	//ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows14.fst"), 50);
 }
 
