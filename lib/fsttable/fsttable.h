@@ -212,7 +212,7 @@ class IntVectorAdapter : public IIntegerColumn
 public:
 	IntVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
-		shared_data = std::make_shared<IntVector>(std::max(length, 1ULL));
+		shared_data = std::make_shared<IntVector>(std::max(length, (uint64_t) 1));
 	    this->columnAttribute = columnAttribute;
 	    this->scale = scale;
 	}
@@ -255,7 +255,7 @@ class ByteVectorAdapter : public IByteColumn
 public:
 	ByteVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute = FstColumnAttribute::NONE)
 	{
-		shared_data = std::make_shared<ByteVector>(std::max(length, 1ULL));
+		shared_data = std::make_shared<ByteVector>(std::max(length, (uint64_t) 1));
 	}
 
 	~ByteVectorAdapter()
@@ -283,7 +283,7 @@ class Int64VectorAdapter : public IInt64Column
 public:
 	Int64VectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
-		shared_data = std::make_shared<LongVector>(std::max(length, 1ULL));
+		shared_data = std::make_shared<LongVector>(std::max(length, (uint64_t) 1));
 		this->columnAttribute = columnAttribute;
 	    this->scale = scale;
 	}
@@ -317,7 +317,7 @@ class LogicalVectorAdapter : public ILogicalColumn
 public:
 	LogicalVectorAdapter(uint64_t length)
 	{
-		shared_data = std::make_shared<IntVector>(std::max(length, 1ULL));
+		shared_data = std::make_shared<IntVector>(std::max(length, (uint64_t) 1));
 	}
 
 	~LogicalVectorAdapter()
@@ -343,7 +343,7 @@ class FactorVectorAdapter : public IFactorColumn
 public:
 	FactorVectorAdapter(uint64_t length, uint64_t nr_of_levels, FstColumnAttribute columnAttribute)
 	{
-		shared_data = std::make_shared<FactorVector>(std::max(length, 1ULL));
+		shared_data = std::make_shared<FactorVector>(std::max(length, (uint64_t) 1));
 
 		StringColumn* levels = shared_data->Levels();
 		levels->AllocateVec(nr_of_levels);
@@ -380,7 +380,7 @@ class DoubleVectorAdapter : public IDoubleColumn
 public:
 	DoubleVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
-		shared_data = std::make_shared<DoubleVector>(std::max(length, 1ULL));
+		shared_data = std::make_shared<DoubleVector>(std::max(length, (uint64_t) 1));
 		this->columnAttribute = columnAttribute;
 	    this->scale = scale;
 	}
