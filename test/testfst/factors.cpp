@@ -22,12 +22,12 @@ using namespace std;
 class FactorTest : public ::testing::Test
 {
 protected:
-	FilePath testDataDir;
-	std::string filePath;
-  IColumnFactory* columnFactory;
+  FilePath testDataDir;
+  std::string filePath;
+  IColumnFactory* columnFactory = nullptr;
 
-  IFstTable* tableReader;
-  IStringArray* selectedCols;
+  IFstTable* tableReader = nullptr;
+  IStringArray* selectedCols = nullptr;
   std::vector<int> keyIndex;
   StringArray* columnSelection = nullptr;
 
