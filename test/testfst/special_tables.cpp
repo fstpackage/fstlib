@@ -32,26 +32,101 @@ protected:
 };
 
 
-TEST_F(SpecialTablesTest, ZeroRows)
+TEST_F(SpecialTablesTest, ZeroRowsInt)
 {
 	int nrOfRows = 0;
 	FstTable fstTable(nrOfRows);
-	fstTable.InitTable(8, nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
 
-	vector<std::string> colNames{ "character", "logical", "byte", "factorNA", "factor", "integer", "bit64", "double" };
+	vector<std::string> colNames{ "integer" };
+	fstTable.SetColumnNames(colNames);
+	IntVectorAdapter intVec(nrOfRows, FstColumnAttribute::NONE, FstScale::UNIT);
+	fstTable.SetIntegerColumn(&intVec, 0);
+
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+}
+
+
+TEST_F(SpecialTablesTest, ZeroRowsInt64)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
+
+	vector<std::string> colNames{ "integer64" };
 	fstTable.SetColumnNames(colNames);
 
+	Int64VectorAdapter int64Vec(nrOfRows, FstColumnAttribute::NONE, FstScale::UNIT);
+	fstTable.SetInt64Column(&int64Vec, 0);
+
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+}
+
+
+TEST_F(SpecialTablesTest, ZeroRowsString)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
+
+	vector<std::string> colNames{ "character" };
+	fstTable.SetColumnNames(colNames);
 
 	// string column
 	StringColumn strColumn{};
 	strColumn.AllocateVec(nrOfRows);
 	strColumn.SetEncoding(StringEncoding::LATIN1);
+	fstTable.SetStringColumn(static_cast<IStringColumn*>(&strColumn), 0);
 
-	// logical column
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+}
+
+
+TEST_F(SpecialTablesTest, ZeroRowsLogical)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
+
+	vector<std::string> colNames{ "logical" };
+	fstTable.SetColumnNames(colNames);
+
 	LogicalVectorAdapter logicalVec(nrOfRows);
+	fstTable.SetLogicalColumn(&logicalVec, 0);
 
-	// byte column
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+}
+
+
+TEST_F(SpecialTablesTest, ZeroRowsByte)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
+
+	vector<std::string> colNames{ "byte" };
+	fstTable.SetColumnNames(colNames);
+
 	ByteVectorAdapter byteVec(nrOfRows);
+	fstTable.SetByteColumn(&byteVec, 0);
+
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+}
+
+
+TEST_F(SpecialTablesTest, ZeroRowsFactor)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(2, nrOfRows);
+
+	vector<std::string> colNames{ "factorNA", "factor" };
+	fstTable.SetColumnNames(colNames);
 
 	// factor column without levels
 	FactorVectorAdapter factorVecNA(nrOfRows, 0, FstColumnAttribute::FACTOR_BASE);
@@ -67,23 +142,26 @@ TEST_F(SpecialTablesTest, ZeroRows)
 		levelVec[pos] = to_string(pos);
 	}
 
-	// integer column
-	IntVectorAdapter intVec(nrOfRows, FstColumnAttribute::NONE, FstScale::UNIT);
+	fstTable.SetFactorColumn(&factorVecNA, 0);
+	fstTable.SetFactorColumn(&factorVec, 1);
 
-	// int64 column
-	Int64VectorAdapter int64Vec(nrOfRows, FstColumnAttribute::NONE, FstScale::UNIT);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
+	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
+}
+
+TEST_F(SpecialTablesTest, ZeroRowsDouble)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(1, nrOfRows);
+
+	vector<std::string> colNames{ "double" };
+	fstTable.SetColumnNames(colNames);
 
 	// double column
 	DoubleVectorAdapter doubleVec(nrOfRows, FstColumnAttribute::NONE, FstScale::UNIT);
 
-	fstTable.SetStringColumn(static_cast<IStringColumn*>(&strColumn), 0);
-	fstTable.SetLogicalColumn(&logicalVec, 1);
-	fstTable.SetByteColumn(&byteVec, 2);
-	fstTable.SetFactorColumn(&factorVecNA, 3);
-	fstTable.SetFactorColumn(&factorVec, 4);
-	fstTable.SetIntegerColumn(&intVec, 5);
-	fstTable.SetInt64Column(&int64Vec, 6);
-	fstTable.SetDoubleColumn(&doubleVec, 7);
+	fstTable.SetDoubleColumn(&doubleVec, 0);
 
 	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 0);
 	ReadWriteTester::WriteReadSingleColumns(fstTable, filePath, 50);
