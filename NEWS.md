@@ -3,6 +3,8 @@
 
 ## Library updates
 
+* Serialization of zero-row tables for all column types (#10)
+
 ## Enhancements
 
 

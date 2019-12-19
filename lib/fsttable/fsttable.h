@@ -41,7 +41,7 @@ public:
 
 class StringColumn : public IStringColumn
 {
-	std::shared_ptr<StringVector> shared_data;
+	std::shared_ptr<StringVector> shared_data = nullptr;
 	StringEncoding string_encoding;
 
 public:
@@ -77,12 +77,15 @@ public:
 
 class IntVector : public DestructableObject
 {
-	int* data;
+	int* data = nullptr;
 
 public:
 	IntVector(uint64_t length)
 	{
-		this->data = new int[length];
+		if (length >0)
+		{
+			this->data = new int[length];
+		}
 	}
 
 	~IntVector()
