@@ -170,7 +170,7 @@ public:
 class FactorVector : public DestructableObject
 {
 	int* data = nullptr;
-	StringColumn* levels;
+	StringColumn* levels = nullptr;
 	unsigned long long length;
 
 public:
@@ -212,7 +212,7 @@ class IntVectorAdapter : public IIntegerColumn
 public:
 	IntVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
-		shared_data = std::make_shared<IntVector>(length);
+		shared_data = std::make_shared<IntVector>(std::max(length, 1ULL));
 	    this->columnAttribute = columnAttribute;
 	    this->scale = scale;
 	}
@@ -255,7 +255,7 @@ class ByteVectorAdapter : public IByteColumn
 public:
 	ByteVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute = FstColumnAttribute::NONE)
 	{
-		shared_data = std::make_shared<ByteVector>(length);
+		shared_data = std::make_shared<ByteVector>(std::max(length, 1ULL));
 	}
 
 	~ByteVectorAdapter()
@@ -283,7 +283,7 @@ class Int64VectorAdapter : public IInt64Column
 public:
 	Int64VectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
-		shared_data = std::make_shared<LongVector>(length);
+		shared_data = std::make_shared<LongVector>(std::max(length, 1ULL));
 		this->columnAttribute = columnAttribute;
 	    this->scale = scale;
 	}
@@ -317,7 +317,7 @@ class LogicalVectorAdapter : public ILogicalColumn
 public:
 	LogicalVectorAdapter(uint64_t length)
 	{
-		shared_data = std::make_shared<IntVector>(length);
+		shared_data = std::make_shared<IntVector>(std::max(length, 1ULL));
 	}
 
 	~LogicalVectorAdapter()
@@ -338,12 +338,12 @@ public:
 
 class FactorVectorAdapter : public IFactorColumn
 {
-	std::shared_ptr<FactorVector> shared_data;
+	std::shared_ptr<FactorVector> shared_data = nullptr;
 
 public:
 	FactorVectorAdapter(uint64_t length, uint64_t nr_of_levels, FstColumnAttribute columnAttribute)
 	{
-		shared_data = std::make_shared<FactorVector>(length);
+		shared_data = std::make_shared<FactorVector>(std::max(length, 1ULL));
 
 		StringColumn* levels = shared_data->Levels();
 		levels->AllocateVec(nr_of_levels);
@@ -380,7 +380,7 @@ class DoubleVectorAdapter : public IDoubleColumn
 public:
 	DoubleVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
-		shared_data = std::make_shared<DoubleVector>(length);
+		shared_data = std::make_shared<DoubleVector>(std::max(length, 1ULL));
 		this->columnAttribute = columnAttribute;
 	    this->scale = scale;
 	}
