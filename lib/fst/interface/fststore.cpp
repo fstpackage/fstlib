@@ -891,7 +891,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
         std::unique_ptr<IStringColumn> stringColumnP(columnFactory->CreateStringColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
         IStringColumn* stringColumn = stringColumnP.get();
 
-        stringColumn->AllocateVec(static_cast<unsigned int>(length));
+        stringColumn->AllocateVec(static_cast<uint64_t>(length));
         tableReader.SetStringColumn(stringColumn, colSel);
 
         fdsReadCharVec_v6(myfile, stringColumn, pos, firstRow, length, nrOfRows);
