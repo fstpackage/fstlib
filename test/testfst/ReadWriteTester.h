@@ -224,12 +224,12 @@ public:
 			fstStore.fstWrite(*subSet, compression);
 
 			//// Read single column table from disk
-			//std::vector<int> keyIndex;
-			//StringArray selectedCols;
-			//FstTable tableRead;
+			std::vector<int> keyIndex;
+			StringArray selectedCols;
+			FstTable tableRead;
 
 			//std::unique_ptr<StringColumn> col_names(new StringColumn());
-			//fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
+			fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
 
 			//std::unique_ptr<StringColumn> col_names2(new StringColumn());
 			//fstStore.fstMeta(&columnFactory, &*col_names2);
