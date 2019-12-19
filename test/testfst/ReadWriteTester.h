@@ -228,7 +228,7 @@ public:
 			StringArray selectedCols;
 			FstTable tableRead;
 
-			//std::unique_ptr<StringColumn> col_names(new StringColumn());
+			std::unique_ptr<StringColumn> col_names(new StringColumn());
 			fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
 
 			//std::unique_ptr<StringColumn> col_names2(new StringColumn());
