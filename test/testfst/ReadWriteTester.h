@@ -231,22 +231,20 @@ public:
 			std::unique_ptr<StringColumn> col_names(new StringColumn());
 			fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
 
-			//std::unique_ptr<StringColumn> col_names2(new StringColumn());
-			//fstStore.fstMeta(&columnFactory, &*col_names2);
+			std::unique_ptr<StringColumn> col_names2(new StringColumn());
+			fstStore.fstMeta(&columnFactory, &*col_names2);
 
-			//CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead);
+			CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead);
 
-			//if (nrOfRows > 2)
-			//{
-			//	FstTable tableRead2;
-			//	std::unique_ptr<StringColumn> col_names(new StringColumn());
-			//	fstStore.fstRead(tableRead2, nullptr, nrOfRows - 5, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
-			//	CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead2, nrOfRows - 5, -1);
-			//}
+			if (nrOfRows > 2)
+			{
+				FstTable tableRead2;
+				std::unique_ptr<StringColumn> col_names(new StringColumn());
+				fstStore.fstRead(tableRead2, nullptr, nrOfRows - 5, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
+				CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead2, nrOfRows - 5, -1);
+			}
 
-			//// Fix manual column name assignment!
-
-
+			// Fix manual column name assignment!
 			delete subSet;
 		}
 	}
