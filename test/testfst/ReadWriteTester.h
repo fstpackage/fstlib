@@ -10,6 +10,7 @@
 
 #include <fsttable.h>
 #include <columnfactory.h>
+#include <vector>
 
 class ReadWriteTester
 {
@@ -67,6 +68,14 @@ public:
 		return std::memcmp(intVecRead->Data(), &(intVecOrig->Data()[from]), 4 * size) == 0;
 	}
 
+	static bool CompareDoubleVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
+	{
+		DoubleVector* doubleVecRead = static_cast<DoubleVector*>(&(*columnRead));
+		DoubleVector* doubleVecOrig = static_cast<DoubleVector*>(&(*columnOrig));
+
+		return std::memcmp(doubleVecRead->Data(), &(doubleVecOrig->Data()[from]), 8 * size) == 0;
+	}
+
 	static bool CompareByteVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
 	{
 		ByteVector* byteVecRead = static_cast<ByteVector*>(&(*columnRead));
@@ -109,6 +118,11 @@ public:
 			case FstColumnType::BYTE:
 			{
 				res = CompareByteVecs(columnRead, columnOrig, from, size);
+				break;
+			}
+
+			case FstColumnType::DOUBLE_64: {
+				res = CompareDoubleVecs(columnRead, columnOrig, from, size);
 				break;
 			}
 
@@ -182,7 +196,7 @@ public:
 	static void WriteReadSingleColumns(FstTable &fstTable, const std::string fileName, const int compression)
 	{
 		// Get column names
-		std::vector<std::string>* colNames = fstTable.ColumnNames();
+		vector<std::string>* colNames = fstTable.ColumnNames();
 		ColumnFactory columnFactory;
 
 		for (std::vector<std::string>::iterator colNameIt = colNames->begin(); colNameIt != colNames->end(); ++colNameIt)

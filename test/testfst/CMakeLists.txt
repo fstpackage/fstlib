@@ -15,6 +15,7 @@ set(testfst_SRCS
 	previousversion.cpp
 	scaletest.cpp
 	SetThreads.cpp
+	special_tables.cpp
 )
 
 # create test executable

@@ -202,9 +202,9 @@ public:
 class IntVectorAdapter : public IIntegerColumn
 {
 	std::shared_ptr<IntVector> shared_data;
-  FstColumnAttribute columnAttribute;
-  short int scale;
-  std::string annotation;
+	FstColumnAttribute columnAttribute;
+	short int scale;
+	std::string annotation;
 
 public:
 	IntVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
@@ -275,7 +275,7 @@ class Int64VectorAdapter : public IInt64Column
 {
 	std::shared_ptr<LongVector> shared_data;
 	FstColumnAttribute columnAttribute;
-  short int scale;
+	short int scale;
 
 public:
 	Int64VectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
@@ -704,7 +704,7 @@ public:
 		this->columnAttributes = new std::vector<FstColumnAttribute>(nrOfCols);
 		this->colNames = new std::vector<std::string>(nrOfCols);
 		this->colAnnotations = new std::vector<std::string>(nrOfCols);
-    this->colScales = new std::vector<short int>(nrOfCols);
+		this->colScales = new std::vector<short int>(nrOfCols);
   }
 
 	void SetStringColumn(IStringColumn * stringColumn, int colNr)
@@ -719,8 +719,8 @@ public:
 		IntVectorAdapter* intAdapter = (IntVectorAdapter*) integerColumn;
 		(*columns)[colNr] = intAdapter->DataPtr();
 		(*columnTypes)[colNr] = FstColumnType::INT_32;
-    (*columnAttributes)[colNr] = intAdapter->Attribute();
-    (*colScales)[colNr] = intAdapter->Scale();
+		(*columnAttributes)[colNr] = intAdapter->Attribute();
+		(*colScales)[colNr] = intAdapter->Scale();
 	}
 
   void SetIntegerColumn(IIntegerColumn * integerColumn, int colNr, std::string &annotation)
