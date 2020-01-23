@@ -46,6 +46,17 @@
 
 // Column types available in fst
 // Only add to the end to support previous format versions
+// This type translates to a type number in the fst format:
+//
+// CHARACTER  | 6
+// FACTOR,    | 7
+// INT_32,    | 8
+// DOUBLE_64  | 9
+// BOOL_2     | 10
+// INT_64     | 11
+// BYTE       | 12
+// BYTE_BLOCK | 13
+//
 enum FstColumnType
 {
 	UNKNOWN = 1,
@@ -55,7 +66,8 @@ enum FstColumnType
 	DOUBLE_64,    // 64-bit double vector
 	BOOL_2,       // 2-bit boolean value (00 = false, 01 = true and 10 = NA)
 	INT_64,       // 64-bit signed integer vector
-	BYTE          // byte vector
+	BYTE,         // byte vector
+    BYTE_BLOCK    // vector of custom sized byte blocks
 };
 
 

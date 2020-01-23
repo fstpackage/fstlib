@@ -44,6 +44,7 @@
 #include <byte/byte_v12.h>
 
 #include <xxhash.h>
+#include "byteblock/byteblock_v13.h"
 
 using namespace std;
 
@@ -498,7 +499,15 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
 		  break;
 	  }
 
-    default:
+      case FstColumnType::BYTE_BLOCK:
+      {
+          colTypes[colNr] = 13;
+          IByteBlockWriter* p_byte_block = fstTable.GetByteBlockWriter(colNr);
+          fdsWriteByteBlockVec_v13(myfile, p_byte_block, nrOfRows, compress);
+          break;
+      }
+
+	  default:
         myfile.close();
         throw(runtime_error("Unknown type found in column."));
     }

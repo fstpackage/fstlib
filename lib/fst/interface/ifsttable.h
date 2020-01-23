@@ -27,6 +27,7 @@
 
 #include "ifstcolumn.h"
 #include "istringwriter.h"
+#include "ibyteblockwriter.h"
 
 
 /**
@@ -53,6 +54,8 @@ class IFstTable
     virtual char* GetByteWriter(unsigned int colNr) = 0;
 
     virtual double* GetDoubleWriter(unsigned int colNr) = 0;
+
+    virtual IByteBlockWriter* GetByteBlockWriter(unsigned int colNr) = 0;
 
     virtual IStringWriter* GetLevelWriter(unsigned int colNr) = 0;
 

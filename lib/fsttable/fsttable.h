@@ -595,7 +595,7 @@ class FstTable : public IFstTable
 	std::vector<FstColumnAttribute>* columnAttributes = nullptr;
 	std::vector<std::string>* colAnnotations = nullptr;
 	std::vector<std::string>* colNames = nullptr;
-  std::vector<short int>* colScales = nullptr;
+	std::vector<short int>* colScales = nullptr;
 	unsigned long long nrOfRows;
 
 public:
@@ -616,7 +616,7 @@ public:
 		delete this->columns;
 		delete this->columnAttributes;
 		delete this->colAnnotations;
-    delete this->colScales;
+	    delete this->colScales;
 	}
 
 	FstTable* SubSet(std::vector<std::string> &columnNames, unsigned long long startRow, unsigned long long endRow) const
@@ -657,7 +657,7 @@ public:
 		type = (*columnTypes)[colNr];
 		colName = (*colNames)[colNr];
 		colAnnotation = (*colAnnotations)[colNr];
-    colScale = (*colScales)[colNr];
+	    colScale = (*colScales)[colNr];
 	}
 
 	void SetColumn(std::shared_ptr<DestructableObject> column, int colNr, FstColumnType type, FstColumnAttribute attribute, std::string colName,
@@ -668,7 +668,7 @@ public:
 		(*columnAttributes)[colNr] = attribute;
 		(*colNames)[colNr] = colName;
 		(*colAnnotations)[colNr] = annotation;
-    (*colScales)[colNr] = scale;
+	    (*colScales)[colNr] = scale;
 	}
 
 	std::vector<std::string>* ColumnNames()
@@ -850,6 +850,12 @@ public:
 		DoubleVector* dblVec = static_cast<DoubleVector*>(&(*sp));
 		return dblVec->Data();
 	}
+
+	IByteBlockWriter* GetByteBlockWriter(unsigned colNr)
+	{
+		return nullptr;
+	}
+
 
 	IStringWriter* GetLevelWriter(unsigned int colNr)
 	{
