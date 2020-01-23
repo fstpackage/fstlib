@@ -32,9 +32,6 @@ enable_testing(true)
 add_subdirectory(ext/lz4)
 add_subdirectory(ext/zstd)
 
-# add arrow library
-add_subdirectory(ext/arrow)
-
 # add the fst library components
 add_subdirectory(lib/fst)
 add_subdirectory(lib/fsttable)
