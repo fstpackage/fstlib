@@ -28,6 +28,7 @@
 
 #include <interface/ibyteblockwriter.h>
 
-void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, IByteBlockWriter* byte_block_vec, unsigned long long nr_of_rows, unsigned int compression);
+void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockWriter* byte_block_writer,
+  uint64_t nr_of_rows, uint32_t compression);
 
 #endif // BYTE_BLOCK_V13_H

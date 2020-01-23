@@ -30,7 +30,7 @@
 
 #define BYTE_BLOCK_HEADER_SIZE 8
 
-
+#include <memory>
 
 #include <byteblock/byteblock_v13.h>
 #include <interface/ibyteblockwriter.h>
@@ -38,28 +38,30 @@
 
 // #include <compression/compressor.h>
 
-using namespace std;
 
-
-inline uint64_t StoreByteBlock_v13(ofstream& fst_file, IByteBlockWriter* byte_block_writer, uint64_t startCount, uint64_t endCount)
+inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const IByteBlockWriter* byte_block_writer,
+  uint64_t start_count, uint64_t end_count)
 {
-  //byte_block_writer->SetBuffersFromVec(startCount, endCount);
+  // fits on the stack (8 * BLOCK_SIZE_BYTE_BLOCK) 
+  const std::unique_ptr<char*[]> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointer on the stack
 
-  //unsigned int nrOfElements = endCount - startCount; // the string at position endCount is not included
+  //byte_block_writer->SetBuffersFromVec(start_count, end_count);
+
+  //unsigned int nrOfElements = end_count - start_count; // the string at position end_count is not included
   //unsigned int nrOfNAInts = 1 + nrOfElements / 32; // add 1 bit for NA present flag
 
   //fst_file.write(reinterpret_cast<char*>(byte_block_writer->strSizes), nrOfElements * 4); // write string lengths
   //fst_file.write(reinterpret_cast<char*>(byte_block_writer->naInts), nrOfNAInts * 4); // write string lengths
 
-  //unsigned int totSize = byte_block_writer->bufSize;
+  //unsigned int tot_size = byte_block_writer->bufSize;
 
-  //fst_file.write(byte_block_writer->activeBuf, totSize);
+  //fst_file.write(byte_block_writer->activeBuf, tot_size);
 
   return 4;
 }
 
 
-// thread plan
+// (future) thread plan
 //
 // The main thread is reserved to call a user method before compression
 // All but the first and last thread compress data blocks
@@ -67,54 +69,53 @@ inline uint64_t StoreByteBlock_v13(ofstream& fst_file, IByteBlockWriter* byte_bl
 
 
 /**
- * \brief write byteblock to file
+ * \brief write block of bytes to file
  * 
  * \param fst_file stream object to write to
  * \param byte_block_writer writer to get data from the column vector
  * \param nr_of_rows of the column vector
  * \param compression compression setting, value between 0 and 100
 */
-void fdsWriteByteBlockVec_v13(ofstream& fst_file, IByteBlockWriter* byte_block_writer, uint64_t nr_of_rows, uint32_t compression)
+void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockWriter* byte_block_writer,
+  uint64_t nr_of_rows, uint32_t compression)
 {
   // nothing to write
   if (nr_of_rows == 0) return;
 
-  uint64_t cur_pos = fst_file.tellp();
-  uint64_t nr_of_blocks = (nr_of_rows - 1) / BLOCKSIZE_BYTE_BLOCK; // number of blocks minus 1
+  const uint64_t cur_pos = fst_file.tellp();
+  const uint64_t nr_of_blocks = (nr_of_rows - 1) / BLOCK_SIZE_BYTE_BLOCK; // number of blocks minus 1
 
   if (compression == 0)
   {
-    uint32_t meta_size = BYTE_BLOCK_HEADER_SIZE + (nr_of_blocks + 1) * 8;  // one pointer per block address
+    const uint32_t meta_size = BYTE_BLOCK_HEADER_SIZE + (nr_of_blocks + 1) * 8;  // one pointer per block address
 
     // first BYTE_BLOCK_HEADER_SIZE bytes store compression setting and block size
-    std::unique_ptr<char[]> metaP(new char[meta_size]);
-    char* meta = metaP.get();
+    const std::unique_ptr<char[]> p_meta(new char[meta_size]);
+    char* meta = p_meta.get();
 
     // clear memory for safety
     memset(meta, 0, meta_size);
 
     // Set column header
-    uint32_t* is_compressed = reinterpret_cast<uint32_t*>(meta);
-    uint32_t* block_size_char = reinterpret_cast<uint32_t*>(&meta[4]);
+    const auto is_compressed = reinterpret_cast<uint32_t*>(meta);
+    const auto block_size_char = reinterpret_cast<uint32_t*>(&meta[4]);
 
-    *block_size_char = BLOCKSIZE_BYTE_BLOCK; // size 2048 blocks
+    *block_size_char = BLOCK_SIZE_BYTE_BLOCK; // size 2048 blocks
     *is_compressed = 0;
 
     fst_file.write(meta, meta_size); // write metadata
 
-    uint64_t* block_pos = reinterpret_cast<unsigned long long*>(&meta[BYTE_BLOCK_HEADER_SIZE]);
-    uint64_t full_size = meta_size;
+    const auto block_pos = reinterpret_cast<uint64_t*>(&meta[BYTE_BLOCK_HEADER_SIZE]);
+    auto full_size = meta_size;
 
     // complete blocks
     for (uint64_t block = 0; block < nr_of_blocks; ++block)
     {
-      uint64_t totSize = StoreByteBlock_v13(fst_file, byte_block_writer, block * BLOCKSIZE_BYTE_BLOCK, (block + 1) * BLOCKSIZE_BYTE_BLOCK);
-      full_size += totSize;
+      full_size += store_byte_block_v13(fst_file, byte_block_writer, block * BLOCK_SIZE_BYTE_BLOCK, (block + 1) * BLOCK_SIZE_BYTE_BLOCK);
       block_pos[block] = full_size;
     }
 
-    uint64_t totSize = StoreByteBlock_v13(fst_file, byte_block_writer, nr_of_blocks * BLOCKSIZE_BYTE_BLOCK, nr_of_rows);
-    full_size += totSize;
+    full_size += store_byte_block_v13(fst_file, byte_block_writer, nr_of_blocks * BLOCK_SIZE_BYTE_BLOCK, nr_of_rows);
     block_pos[nr_of_blocks] = full_size;
 
     fst_file.seekp(cur_pos + BYTE_BLOCK_HEADER_SIZE);
@@ -123,4 +124,6 @@ void fdsWriteByteBlockVec_v13(ofstream& fst_file, IByteBlockWriter* byte_block_w
 
     return;
   }
+
+  throw std::runtime_error("compression not implemented for list columns");
 }

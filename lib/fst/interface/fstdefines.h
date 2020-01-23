@@ -67,7 +67,7 @@
 #define HASH_SIZE                       4096                          // number of bytes in default compression block
 #define MAX_CHAR_STACK_SIZE             32768                         // number of characters in default compression block
 #define BLOCKSIZE_CHAR                  2047                          // number of characters in default compression block
-#define BLOCKSIZE_BYTE_BLOCK            2048                          // number of characters in default compression block
+#define BLOCK_SIZE_BYTE_BLOCK           2048                          // number of bytes in byte block compression block
 #define PREF_BLOCK_SIZE                 (16384 * CACHEFACTOR)         // BlockStreamer
 #define MAX_SIZE_COMPRESS_BLOCK         (16384 * CACHEFACTOR)         // Compression
 #define MAX_SIZE_COMPRESS_BLOCK_HALF    (8192 * CACHEFACTOR)          // Compression
