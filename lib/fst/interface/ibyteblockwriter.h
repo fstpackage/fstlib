@@ -30,7 +30,10 @@ class IByteBlockWriter
 public:
   unsigned long long vecLength = 0;
 
-  virtual ~IByteBlockWriter() {}
+  virtual ~IByteBlockWriter() = default;
+
+  virtual void SetSizesAndPointers(const std::shared_ptr<char*[]> elements,
+    const std::shared_ptr<unsigned long long[]> sizes, uint64_t row_start, uint64_t block_size) const {}
 };
 
 

@@ -22,15 +22,23 @@
 */
 
 
-// header info
-//
-// [0 - 3] is_compressed :
-//     bit 0: compression
-// [4 - 7] block_size_char (uint32_t)
+/* The byte-block column type is used for serialization of vectors of pointers. It's
+   serialization algorithm requires an implementation of IByteBlockWriter, that is used
+   to retrieve the pointer vector and a vector of element lengths. The byte-block type
+   is used for vector elements that are defined in non-consecutive memory locations.
+
+   Vector elements that are located in consecutive memory locations are already partly
+   serialized, and for those the IConsBlockWriter is better suited.
+
+   Header information:
+   [0 - 3] is_compressed :
+     bit 0: compression
+   [4 - 7] block_size_char (uint32_t)
+*/
 
 #define BYTE_BLOCK_HEADER_SIZE 8
 
-#include <memory>
+#include <cstring>
 
 #include <byteblock/byteblock_v13.h>
 #include <interface/ibyteblockwriter.h>
@@ -39,11 +47,11 @@
 // #include <compression/compressor.h>
 
 
-inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const IByteBlockWriter* byte_block_writer,
-  uint64_t start_count, uint64_t end_count)
+inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const std::shared_ptr<char* []> elements,
+  const std::shared_ptr<uint64_t[]> sizes, uint64_t length)
 {
   // fits on the stack (8 * BLOCK_SIZE_BYTE_BLOCK) 
-  const std::unique_ptr<char*[]> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointer on the stack
+  //const std::unique_ptr<char*[]> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointer on the stack
 
   //byte_block_writer->SetBuffersFromVec(start_count, end_count);
 
@@ -61,12 +69,19 @@ inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const IByteBlockWr
 }
 
 
-// (future) thread plan
-//
-// The main thread is reserved to call a user method before compression
-// All but the first and last thread compress data blocks
-// The last thread writes data to disk after compression
+/* thread plan
 
+1) The main thread fills a buffer array with pointers to the individual elements. At this point custom
+   code that needs to run on the main thread can also be executed (B).
+2) Threads 2 - (n - 1) each take a block of pointers to serialize and compress it (SC).
+3) The last thread writes the compressed data to disk (W).
+
+1: | B1 | B2  | B3  |     |    |
+2:  |    | SC1 | SC2 | SC3 |    |
+3:   |    | SC1 | SC2 | SC3 |    |
+4:    |    | SC1 | SC2 | SC3 |    |
+5:     |    |     | W1  | W2  | W3 |
+*/
 
 /**
  * \brief write block of bytes to file
@@ -85,45 +100,54 @@ void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockWriter* b
   const uint64_t cur_pos = fst_file.tellp();
   const uint64_t nr_of_blocks = (nr_of_rows - 1) / BLOCK_SIZE_BYTE_BLOCK; // number of blocks minus 1
 
-  if (compression == 0)
+  const uint64_t meta_size = BYTE_BLOCK_HEADER_SIZE + (nr_of_blocks + 1) * 8;  // one pointer per block address
+
+  // first BYTE_BLOCK_HEADER_SIZE bytes store compression setting and block size
+  const std::unique_ptr<char[]> p_meta(new char[meta_size]);
+  char* meta = p_meta.get();
+
+  // clear memory for safety
+  memset(meta, 0, meta_size);
+
+  // Set column header
+  const auto is_compressed = reinterpret_cast<uint32_t*>(meta);
+  const auto block_size_char = reinterpret_cast<uint32_t*>(&meta[4]);
+
+  *block_size_char = BLOCK_SIZE_BYTE_BLOCK; // size 2048 blocks
+  *is_compressed = 0;
+
+  fst_file.write(meta, meta_size); // write metadata
+
+  const auto block_pos = reinterpret_cast<uint64_t*>(&meta[BYTE_BLOCK_HEADER_SIZE]);
+  auto full_size = meta_size;
+
+  // complete blocks
+  for (uint64_t block = 0; block < nr_of_blocks; ++block)
   {
-    const uint32_t meta_size = BYTE_BLOCK_HEADER_SIZE + (nr_of_blocks + 1) * 8;  // one pointer per block address
+    // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
+    const std::shared_ptr<char* []> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
+    const std::shared_ptr<uint64_t []> sizes(new uint64_t[BLOCK_SIZE_BYTE_BLOCK]);  // array of sizes on heap
 
-    // first BYTE_BLOCK_HEADER_SIZE bytes store compression setting and block size
-    const std::unique_ptr<char[]> p_meta(new char[meta_size]);
-    char* meta = p_meta.get();
+    const uint64_t row_start = block * BLOCK_SIZE_BYTE_BLOCK;
 
-    // clear memory for safety
-    memset(meta, 0, meta_size);
+    // fill buffers on main thread (to facilitate single clients with single threaded memory access models)
+    byte_block_writer->SetSizesAndPointers(elements, sizes, row_start, BLOCK_SIZE_BYTE_BLOCK);
 
-    // Set column header
-    const auto is_compressed = reinterpret_cast<uint32_t*>(meta);
-    const auto block_size_char = reinterpret_cast<uint32_t*>(&meta[4]);
-
-    *block_size_char = BLOCK_SIZE_BYTE_BLOCK; // size 2048 blocks
-    *is_compressed = 0;
-
-    fst_file.write(meta, meta_size); // write metadata
-
-    const auto block_pos = reinterpret_cast<uint64_t*>(&meta[BYTE_BLOCK_HEADER_SIZE]);
-    auto full_size = meta_size;
-
-    // complete blocks
-    for (uint64_t block = 0; block < nr_of_blocks; ++block)
-    {
-      full_size += store_byte_block_v13(fst_file, byte_block_writer, block * BLOCK_SIZE_BYTE_BLOCK, (block + 1) * BLOCK_SIZE_BYTE_BLOCK);
-      block_pos[block] = full_size;
-    }
-
-    full_size += store_byte_block_v13(fst_file, byte_block_writer, nr_of_blocks * BLOCK_SIZE_BYTE_BLOCK, nr_of_rows);
-    block_pos[nr_of_blocks] = full_size;
-
-    fst_file.seekp(cur_pos + BYTE_BLOCK_HEADER_SIZE);
-    fst_file.write(reinterpret_cast<char*>(block_pos), (nr_of_blocks + 1) * 8); // additional zero for index convenience
-    fst_file.seekp(cur_pos + full_size); // back to end of file
-
-    return;
+    // parallel compression from this point on
+    full_size += store_byte_block_v13(fst_file, elements, sizes, BLOCK_SIZE_BYTE_BLOCK);
+    block_pos[block] = full_size;
   }
 
-  throw std::runtime_error("compression not implemented for list columns");
+  // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
+  const std::shared_ptr<char* []> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
+  const std::shared_ptr<uint64_t[]> sizes(new uint64_t[BLOCK_SIZE_BYTE_BLOCK]);  // array of sizes on heap
+
+  full_size += store_byte_block_v13(fst_file, elements, sizes, nr_of_rows - nr_of_blocks * BLOCK_SIZE_BYTE_BLOCK);
+  block_pos[nr_of_blocks] = full_size;
+
+  fst_file.seekp(cur_pos + BYTE_BLOCK_HEADER_SIZE);
+  fst_file.write(reinterpret_cast<char*>(block_pos), (nr_of_blocks + 1) * 8); // additional zero for index convenience
+  fst_file.seekp(cur_pos + full_size); // back to end of file
+
+  return;
 }

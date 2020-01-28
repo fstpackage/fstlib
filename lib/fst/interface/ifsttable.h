@@ -80,6 +80,8 @@ class IFstTable
 
   	virtual void SetDoubleColumn(IDoubleColumn* doubleColumn, int colNr) = 0;
 
+    virtual void SetByteBlockWriter(IByteBlockWriter *byte_block_column, unsigned int col_nr) = 0;
+
   	virtual void SetFactorColumn(IFactorColumn* factorColumn, int colNr) = 0;
 
   	virtual void SetInt64Column(IInt64Column* int64Column, int colNr) = 0;

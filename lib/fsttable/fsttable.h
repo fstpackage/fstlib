@@ -167,6 +167,42 @@ public:
 };
 
 
+class ByteBlockVector : public DestructableObject
+{
+	int* data = nullptr;
+	StringColumn* levels = nullptr;
+	unsigned long long length;
+
+public:
+	ByteBlockVector(uint64_t length)
+	{
+		this->length = length;
+		if (length > 0) this->data = new int[length];
+		this->levels = new StringColumn();  // AllocVector HAS to be called?
+	}
+
+	~ByteBlockVector()
+	{
+		if (data != nullptr)
+		{
+			delete[] data;
+		}
+
+		delete levels;
+	}
+
+	int* Data()
+	{
+		return data;
+	}
+
+	StringColumn* Levels() const
+	{
+		return levels;
+	}
+};
+
+
 class FactorVector : public DestructableObject
 {
 	int* data = nullptr;
@@ -330,6 +366,35 @@ public:
 	}
 
 	std::shared_ptr<IntVector> DataPtr() const
+	{
+		return shared_data;
+	}
+};
+
+
+class ByteBlockVectorAdapter : public IByteBlockWriter
+{
+	std::shared_ptr<ByteBlockVector> shared_data;
+
+public:
+	ByteBlockVectorAdapter(uint64_t length, uint64_t nr_of_levels, FstColumnAttribute columnAttribute)
+	{
+		shared_data = std::make_shared<ByteBlockVector>(std::max(length, (uint64_t)1));
+
+		StringColumn* levels = shared_data->Levels();
+		levels->AllocateVec(nr_of_levels);
+	}
+
+	~ByteBlockVectorAdapter()
+	{
+	}
+
+	int* LevelData()
+	{
+		return shared_data->Data();
+	}
+
+	std::shared_ptr<ByteBlockVector> DataPtr() const
 	{
 		return shared_data;
 	}
@@ -772,6 +837,13 @@ public:
     (*columns)[colNr] = doubleAdapter->DataPtr();
     (*columnTypes)[colNr] = FstColumnType::DOUBLE_64;
   }
+
+	void SetByteBlockWriter(IByteBlockWriter *byte_block_column, unsigned col_nr)
+	{
+		ByteBlockVectorAdapter* byte_block = (ByteBlockVectorAdapter*) byte_block_column;
+		(*columns)[col_nr] = byte_block->DataPtr();
+		(*columnTypes)[col_nr] = FstColumnType::BYTE_BLOCK;
+	}
 
 	void SetFactorColumn(IFactorColumn* factorColumn, int colNr)
 	{
