@@ -121,6 +121,12 @@ enum FstTimeScale
 
 // The abstract column and array interfaces function as a bridge between the actual data and fst
 
+class IColumn
+{
+public:
+  virtual ~IColumn() = 0;
+};
+
 
 class IStringArray
 {

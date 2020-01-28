@@ -27,7 +27,7 @@
 
 #include "ifstcolumn.h"
 #include "istringwriter.h"
-#include "ibyteblockwriter.h"
+#include "ibyteblockcolumn.h"
 
 
 /**
@@ -55,7 +55,7 @@ class IFstTable
 
     virtual double* GetDoubleWriter(unsigned int colNr) = 0;
 
-    virtual IByteBlockWriter* GetByteBlockWriter(unsigned int colNr) = 0;
+    virtual const IByteBlockColumn* GetByteBlockWriter(unsigned int col_nr) = 0;
 
     virtual IStringWriter* GetLevelWriter(unsigned int colNr) = 0;
 
@@ -80,7 +80,7 @@ class IFstTable
 
   	virtual void SetDoubleColumn(IDoubleColumn* doubleColumn, int colNr) = 0;
 
-    virtual void SetByteBlockWriter(IByteBlockWriter *byte_block_column, unsigned int col_nr) = 0;
+    virtual void SetByteBlockColumn(std::shared_ptr<IByteBlockColumn> byte_block_column, unsigned col_nr) = 0;
 
   	virtual void SetFactorColumn(IFactorColumn* factorColumn, int colNr) = 0;
 

@@ -23,7 +23,7 @@
 
 
 /* The byte-block column type is used for serialization of vectors of pointers. It's
-   serialization algorithm requires an implementation of IByteBlockWriter, that is used
+   serialization algorithm requires an implementation of IByteBlockColumn, that is used
    to retrieve the pointer vector and a vector of element lengths. The byte-block type
    is used for vector elements that are defined in non-consecutive memory locations.
 
@@ -41,7 +41,7 @@
 #include <cstring>
 
 #include <byteblock/byteblock_v13.h>
-#include <interface/ibyteblockwriter.h>
+#include <interface/IByteBlockColumn.h>
 #include <interface/fstdefines.h>
 
 // #include <compression/compressor.h>
@@ -91,7 +91,7 @@ inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const std::shared_
  * \param nr_of_rows of the column vector
  * \param compression compression setting, value between 0 and 100
 */
-void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockWriter* byte_block_writer,
+void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockColumn* byte_block_writer,
   uint64_t nr_of_rows, uint32_t compression)
 {
   // nothing to write

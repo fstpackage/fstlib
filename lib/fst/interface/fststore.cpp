@@ -499,13 +499,13 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
 		  break;
 	  }
 
-      case FstColumnType::BYTE_BLOCK:
-      {
-          colTypes[colNr] = 13;
-          IByteBlockWriter* p_byte_block = fstTable.GetByteBlockWriter(colNr);
-          fdsWriteByteBlockVec_v13(myfile, p_byte_block, nrOfRows, compress);
-          break;
-      }
+    case FstColumnType::BYTE_BLOCK:
+    {
+        colTypes[colNr] = 13;
+        const IByteBlockColumn* p_byte_block = fstTable.GetByteBlockWriter(colNr);
+        fdsWriteByteBlockVec_v13(myfile, p_byte_block, nrOfRows, compress);
+        break;
+    }
 
 	  default:
         myfile.close();

@@ -22,20 +22,23 @@
 */
 
 
-#ifndef IBYTEBLOCKWRITER_H
-#define IBYTEBLOCKWRITER_H
+#ifndef IBYTEBLOCKCOLUMN_H
+#define IBYTEBLOCKCOLUMN_H
 
-class IByteBlockWriter
+#include <memory>
+
+#include "ifstcolumn.h"
+
+class IByteBlockColumn : public IColumn
 {
 public:
-  unsigned long long vecLength = 0;
+  uint64_t vecLength = 0;
 
-  virtual ~IByteBlockWriter() = default;
+  virtual ~IByteBlockColumn() = default;
 
   virtual void SetSizesAndPointers(const std::shared_ptr<char*[]> elements,
     const std::shared_ptr<unsigned long long[]> sizes, uint64_t row_start, uint64_t block_size) const {}
 };
 
 
-#endif  // IBYTEBLOCKWRITER_H
-
+#endif  // IBYTEBLOCKCOLUMN_H

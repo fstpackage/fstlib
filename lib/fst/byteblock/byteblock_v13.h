@@ -26,9 +26,9 @@
 
 #include <fstream>
 
-#include <interface/ibyteblockwriter.h>
+#include <interface/IByteBlockColumn.h>
 
-void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockWriter* byte_block_writer,
+void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockColumn* byte_block_writer,
   uint64_t nr_of_rows, uint32_t compression);
 
 #endif // BYTE_BLOCK_V13_H

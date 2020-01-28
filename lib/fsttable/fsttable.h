@@ -372,7 +372,7 @@ public:
 };
 
 
-class ByteBlockVectorAdapter : public IByteBlockWriter
+class ByteBlockVectorAdapter : public IByteBlockColumn
 {
 	std::shared_ptr<ByteBlockVector> shared_data;
 
@@ -655,6 +655,7 @@ public:
 
 class FstTable : public IFstTable
 {
+	std::vector<std::shared_ptr<IColumn>>* icolumns = nullptr;
 	std::vector<std::shared_ptr<DestructableObject>>* columns = nullptr;
 	std::vector<FstColumnType>* columnTypes = nullptr;
 	std::vector<FstColumnAttribute>* columnAttributes = nullptr;
@@ -679,9 +680,10 @@ public:
 		delete this->columnTypes;
 		delete this->colNames;
 		delete this->columns;
+		delete this->icolumns;
 		delete this->columnAttributes;
 		delete this->colAnnotations;
-	    delete this->colScales;
+	  delete this->colScales;
 	}
 
 	FstTable* SubSet(std::vector<std::string> &columnNames, unsigned long long startRow, unsigned long long endRow) const
@@ -722,7 +724,7 @@ public:
 		type = (*columnTypes)[colNr];
 		colName = (*colNames)[colNr];
 		colAnnotation = (*colAnnotations)[colNr];
-	    colScale = (*colScales)[colNr];
+	  colScale = (*colScales)[colNr];
 	}
 
 	void SetColumn(std::shared_ptr<DestructableObject> column, int colNr, FstColumnType type, FstColumnAttribute attribute, std::string colName,
@@ -768,6 +770,7 @@ public:
 		this->nrOfRows = nrOfRows;
 
 		this->columns = new std::vector<std::shared_ptr<DestructableObject>>(nrOfCols);
+		this->icolumns = new std::vector<std::shared_ptr<IColumn>>(nrOfCols);
 		this->columnTypes = new std::vector<FstColumnType>(nrOfCols);
 		this->columnAttributes = new std::vector<FstColumnAttribute>(nrOfCols);
 		this->colNames = new std::vector<std::string>(nrOfCols);
@@ -831,17 +834,16 @@ public:
     (*colAnnotations)[colNr] = annotation;
 	}
 
-  void SetDoubleColumn(IDoubleColumn * doubleColumn, int colNr)
+  void SetDoubleColumn(IDoubleColumn* doubleColumn, int colNr)
   {
     DoubleVectorAdapter* doubleAdapter = (DoubleVectorAdapter*) doubleColumn;
     (*columns)[colNr] = doubleAdapter->DataPtr();
     (*columnTypes)[colNr] = FstColumnType::DOUBLE_64;
   }
 
-	void SetByteBlockWriter(IByteBlockWriter *byte_block_column, unsigned col_nr)
+	void SetByteBlockColumn(std::shared_ptr<IByteBlockColumn> byte_block_column, unsigned col_nr)
 	{
-		ByteBlockVectorAdapter* byte_block = (ByteBlockVectorAdapter*) byte_block_column;
-		(*columns)[col_nr] = byte_block->DataPtr();
+		(*icolumns)[col_nr] = std::static_pointer_cast<IColumn>(byte_block_column);
 		(*columnTypes)[col_nr] = FstColumnType::BYTE_BLOCK;
 	}
 
@@ -923,9 +925,11 @@ public:
 		return dblVec->Data();
 	}
 
-	IByteBlockWriter* GetByteBlockWriter(unsigned colNr)
+	const IByteBlockColumn* GetByteBlockWriter(unsigned int col_nr)
 	{
-		return nullptr;
+		std::shared_ptr<IColumn> byte_block_writer = (*icolumns)[col_nr];
+		std::shared_ptr<IByteBlockColumn> byte_block = std::static_pointer_cast<IByteBlockColumn>(byte_block_writer);
+		return byte_block.get();
 	}
 
 
