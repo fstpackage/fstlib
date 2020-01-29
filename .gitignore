@@ -3,3 +3,4 @@
 *.o
 /out/build
 /Folder.DotSettings.user
+/dev/

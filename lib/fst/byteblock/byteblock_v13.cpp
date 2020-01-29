@@ -41,7 +41,7 @@
 #include <cstring>
 
 #include <byteblock/byteblock_v13.h>
-#include <interface/IByteBlockColumn.h>
+#include <interface/ibyteblockcolumn.h>
 #include <interface/fstdefines.h>
 
 // #include <compression/compressor.h>
