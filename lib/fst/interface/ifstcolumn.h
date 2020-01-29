@@ -33,15 +33,15 @@
 // Column scaling in power of 10
 // Applicable to INT_32, DOUBLE_64 and INT_64 type.
 // Only add to the end to support previous format versions
-#define SCALE_PICO    -12
-#define SCALE_NANO     -9
-#define SCALE_MICRO    -6
-#define SCALE_MILLI    -3
-#define SCALE_UNITY     0
-#define SCALE_KILO      3
-#define SCALE_MEGA      6
-#define SCALE_GIGA      9
-#define SCALE_TERA     12
+#define SCALE_PICO    (-12)
+#define SCALE_NANO     (-9)
+#define SCALE_MICRO    (-6)
+#define SCALE_MILLI    (-3)
+#define SCALE_UNITY       0
+#define SCALE_KILO        3
+#define SCALE_MEGA        6
+#define SCALE_GIGA        9
+#define SCALE_TERA       12
 
 
 // Column types available in fst

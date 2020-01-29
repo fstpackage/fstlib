@@ -47,7 +47,7 @@
 // #include <compression/compressor.h>
 
 
-inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const std::shared_ptr<char* []> elements,
+inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const std::shared_ptr<const char* []> elements,
   const std::shared_ptr<uint64_t[]> sizes, uint64_t length)
 {
   // fits on the stack (8 * BLOCK_SIZE_BYTE_BLOCK) 
@@ -125,7 +125,7 @@ void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockColumn* b
   for (uint64_t block = 0; block < nr_of_blocks; ++block)
   {
     // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
-    const std::shared_ptr<char* []> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
+    const std::shared_ptr<const char* []> elements(new const char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
     const std::shared_ptr<uint64_t []> sizes(new uint64_t[BLOCK_SIZE_BYTE_BLOCK]);  // array of sizes on heap
 
     const uint64_t row_start = block * BLOCK_SIZE_BYTE_BLOCK;
@@ -139,7 +139,7 @@ void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockColumn* b
   }
 
   // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
-  const std::shared_ptr<char* []> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
+  const std::shared_ptr<const char* []> elements(new const char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
   const std::shared_ptr<uint64_t[]> sizes(new uint64_t[BLOCK_SIZE_BYTE_BLOCK]);  // array of sizes on heap
 
   full_size += store_byte_block_v13(fst_file, elements, sizes, nr_of_rows - nr_of_blocks * BLOCK_SIZE_BYTE_BLOCK);
@@ -150,4 +150,11 @@ void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockColumn* b
   fst_file.seekp(cur_pos + full_size); // back to end of file
 
   return;
+}
+
+
+void read_byte_block_vec_v13(std::istream& fst_file, const IByteBlockColumn* byte_block, uint64_t block_pos, uint64_t start_row,
+  uint64_t length, uint64_t size)
+{
+  
 }

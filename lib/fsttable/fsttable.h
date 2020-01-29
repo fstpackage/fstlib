@@ -797,12 +797,16 @@ public:
     (*columnTypes)[colNr] = FstColumnType::DOUBLE_64;
   }
 
-	void SetByteBlockColumn(IByteBlockColumn* byte_block_column, unsigned col_nr)
-	{
-		ByteBlockVectorAdapter* byte_block = (ByteBlockVectorAdapter*) byte_block_column;
+  const IByteBlockColumn* add_byte_block_column(unsigned col_nr)
+  {
+		auto byte_block = new ByteBlockVectorAdapter(this->NrOfRows());
 
-		(*columns)[col_nr] = std::shared_ptr<DestructableObject>( byte_block);
+    const std::shared_ptr<DestructableObject> s_byte_block = std::shared_ptr<DestructableObject>(byte_block);
+
+		(*columns)[col_nr] = s_byte_block;
 		(*columnTypes)[col_nr] = FstColumnType::BYTE_BLOCK;
+
+		return static_cast<IByteBlockColumn*>(byte_block);
 	}
 
 	void SetFactorColumn(IFactorColumn* factorColumn, int colNr)
