@@ -167,42 +167,6 @@ public:
 };
 
 
-class ByteBlockVector : public DestructableObject
-{
-	int* data = nullptr;
-	StringColumn* levels = nullptr;
-	unsigned long long length;
-
-public:
-	ByteBlockVector(uint64_t length)
-	{
-		this->length = length;
-		if (length > 0) this->data = new int[length];
-		this->levels = new StringColumn();  // AllocVector HAS to be called?
-	}
-
-	~ByteBlockVector()
-	{
-		if (data != nullptr)
-		{
-			delete[] data;
-		}
-
-		delete levels;
-	}
-
-	int* Data()
-	{
-		return data;
-	}
-
-	StringColumn* Levels() const
-	{
-		return levels;
-	}
-};
-
-
 class FactorVector : public DestructableObject
 {
 	int* data = nullptr;
@@ -238,6 +202,30 @@ public:
 };
 
 
+class ByteBlockVectorAdapter : public IByteBlockColumn, public DestructableObject
+{
+	std::unique_ptr<char* []> p_byte_blocks;
+	std::unique_ptr<uint64_t []> p_sizes;
+
+public:
+	ByteBlockVectorAdapter(uint64_t length)
+	{
+		p_byte_blocks = std::unique_ptr<char* []>(new char*[std::max(length, 1ULL)]);
+		p_sizes = std::unique_ptr <uint64_t []>(new uint64_t[std::max(length, 1ULL)]);  // at least one element
+	}
+
+	~ByteBlockVectorAdapter()
+	{
+	}
+
+	void SetSizesAndPointers(const std::shared_ptr<char* []> elements,
+		const std::shared_ptr<uint64_t[]> sizes, uint64_t row_start, uint64_t block_size) const
+	{
+		// use ByteBlockVector here to populate buffers
+	}
+};
+
+
 class IntVectorAdapter : public IIntegerColumn
 {
 	std::shared_ptr<IntVector> shared_data;
@@ -249,8 +237,8 @@ public:
 	IntVectorAdapter(uint64_t length, FstColumnAttribute columnAttribute, short int scale)
 	{
 		shared_data = std::make_shared<IntVector>(std::max(length, (uint64_t) 1));
-	    this->columnAttribute = columnAttribute;
-	    this->scale = scale;
+	  this->columnAttribute = columnAttribute;
+	  this->scale = scale;
 	}
 
 	~IntVectorAdapter()
@@ -366,35 +354,6 @@ public:
 	}
 
 	std::shared_ptr<IntVector> DataPtr() const
-	{
-		return shared_data;
-	}
-};
-
-
-class ByteBlockVectorAdapter : public IByteBlockColumn
-{
-	std::shared_ptr<ByteBlockVector> shared_data;
-
-public:
-	ByteBlockVectorAdapter(uint64_t length, uint64_t nr_of_levels, FstColumnAttribute columnAttribute)
-	{
-		shared_data = std::make_shared<ByteBlockVector>(std::max(length, (uint64_t)1));
-
-		StringColumn* levels = shared_data->Levels();
-		levels->AllocateVec(nr_of_levels);
-	}
-
-	~ByteBlockVectorAdapter()
-	{
-	}
-
-	int* LevelData()
-	{
-		return shared_data->Data();
-	}
-
-	std::shared_ptr<ByteBlockVector> DataPtr() const
 	{
 		return shared_data;
 	}
@@ -655,7 +614,6 @@ public:
 
 class FstTable : public IFstTable
 {
-	std::vector<std::shared_ptr<IColumn>>* icolumns = nullptr;
 	std::vector<std::shared_ptr<DestructableObject>>* columns = nullptr;
 	std::vector<FstColumnType>* columnTypes = nullptr;
 	std::vector<FstColumnAttribute>* columnAttributes = nullptr;
@@ -680,7 +638,6 @@ public:
 		delete this->columnTypes;
 		delete this->colNames;
 		delete this->columns;
-		delete this->icolumns;
 		delete this->columnAttributes;
 		delete this->colAnnotations;
 	  delete this->colScales;
@@ -770,7 +727,6 @@ public:
 		this->nrOfRows = nrOfRows;
 
 		this->columns = new std::vector<std::shared_ptr<DestructableObject>>(nrOfCols);
-		this->icolumns = new std::vector<std::shared_ptr<IColumn>>(nrOfCols);
 		this->columnTypes = new std::vector<FstColumnType>(nrOfCols);
 		this->columnAttributes = new std::vector<FstColumnAttribute>(nrOfCols);
 		this->colNames = new std::vector<std::string>(nrOfCols);
@@ -841,9 +797,11 @@ public:
     (*columnTypes)[colNr] = FstColumnType::DOUBLE_64;
   }
 
-	void SetByteBlockColumn(std::shared_ptr<IByteBlockColumn> byte_block_column, unsigned col_nr)
+	void SetByteBlockColumn(IByteBlockColumn* byte_block_column, unsigned col_nr)
 	{
-		(*icolumns)[col_nr] = std::static_pointer_cast<IColumn>(byte_block_column);
+		ByteBlockVectorAdapter* byte_block = (ByteBlockVectorAdapter*) byte_block_column;
+
+		(*columns)[col_nr] = std::shared_ptr<DestructableObject>( byte_block);
 		(*columnTypes)[col_nr] = FstColumnType::BYTE_BLOCK;
 	}
 
@@ -927,8 +885,9 @@ public:
 
 	const IByteBlockColumn* GetByteBlockWriter(unsigned int col_nr)
 	{
-		std::shared_ptr<IColumn> byte_block_writer = (*icolumns)[col_nr];
-		std::shared_ptr<IByteBlockColumn> byte_block = std::static_pointer_cast<IByteBlockColumn>(byte_block_writer);
+		std::shared_ptr<DestructableObject> byte_block_writer = (*columns)[col_nr];
+
+		std::shared_ptr<ByteBlockVectorAdapter> byte_block = std::static_pointer_cast<ByteBlockVectorAdapter>(byte_block_writer);
 		return byte_block.get();
 	}
 

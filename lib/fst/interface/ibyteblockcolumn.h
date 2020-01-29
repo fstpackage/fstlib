@@ -29,7 +29,7 @@
 
 #include "ifstcolumn.h"
 
-class IByteBlockColumn : public IColumn
+class IByteBlockColumn
 {
 public:
   uint64_t vecLength = 0;
@@ -37,7 +37,7 @@ public:
   virtual ~IByteBlockColumn() = default;
 
   virtual void SetSizesAndPointers(const std::shared_ptr<char*[]> elements,
-    const std::shared_ptr<unsigned long long[]> sizes, uint64_t row_start, uint64_t block_size) const {}
+    const std::shared_ptr<uint64_t[]> sizes, uint64_t row_start, uint64_t block_size) const {}
 };
 
 

@@ -80,7 +80,7 @@ class IFstTable
 
   	virtual void SetDoubleColumn(IDoubleColumn* doubleColumn, int colNr) = 0;
 
-    virtual void SetByteBlockColumn(std::shared_ptr<IByteBlockColumn> byte_block_column, unsigned col_nr) = 0;
+    virtual void SetByteBlockColumn(IByteBlockColumn* byte_block_column, unsigned col_nr) = 0;
 
   	virtual void SetFactorColumn(IFactorColumn* factorColumn, int colNr) = 0;
 
