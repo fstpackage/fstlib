@@ -90,6 +90,29 @@ public:
   }
 };
 
+
+class uint64_array_ptr
+{
+  uint64_t* array_address = nullptr;
+
+public:
+  uint64_array_ptr(uint64_t size)
+  {
+    this->array_address = new uint64_t[size];
+  }
+
+  ~uint64_array_ptr()
+  {
+    delete[] array_address;
+  }
+
+  uint64_t* get() const
+  {
+    return array_address;
+  }
+};
+
+
 /* thread plan
 
 1) The main thread fills a buffer array with pointers to the individual elements. At this point custom
@@ -147,7 +170,7 @@ void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, IByteBlockColumn* byte_bl
   {
     // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
     byte_block_array_ptr elements(BLOCK_SIZE_BYTE_BLOCK);
-    std::unique_ptr<uint64_t []> sizes = std::make_unique<uint64_t[]>(BLOCK_SIZE_BYTE_BLOCK);  // array of sizes on heap
+    uint64_array_ptr sizes(BLOCK_SIZE_BYTE_BLOCK);  // array of sizes on heap
 
     const uint64_t row_start = block * BLOCK_SIZE_BYTE_BLOCK;
 
@@ -161,7 +184,7 @@ void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, IByteBlockColumn* byte_bl
 
   // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
   byte_block_array_ptr elements(BLOCK_SIZE_BYTE_BLOCK);
-  const std::unique_ptr<uint64_t[]> sizes = std::make_unique<uint64_t[]>(BLOCK_SIZE_BYTE_BLOCK);  // array of sizes on heap
+  uint64_array_ptr sizes(BLOCK_SIZE_BYTE_BLOCK);  // array of sizes on heap
 
   full_size += store_byte_block_v13(fst_file, elements.get(), sizes.get(), nr_of_rows - nr_of_blocks * BLOCK_SIZE_BYTE_BLOCK);
   block_pos[nr_of_blocks] = full_size;
