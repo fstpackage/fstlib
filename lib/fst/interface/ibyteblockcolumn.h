@@ -36,7 +36,7 @@ public:
 
   virtual ~IByteBlockColumn() = default;
 
-  virtual void SetSizesAndPointers(char** elements, uint64_t* sizes, uint64_t row_start, uint64_t block_size) {}
+  virtual void SetSizesAndPointers(const char** elements, uint64_t* sizes, uint64_t row_start, uint64_t block_size) = 0;
 };
 
 

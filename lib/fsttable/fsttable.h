@@ -12,6 +12,8 @@
 #include <interface/ifsttable.h>
 #include <interface/fstdefines.h>
 
+#include <byteblock/byteblock_v13.h>
+
 
 class DestructableObject
 {
@@ -204,19 +206,41 @@ public:
 
 class ByteBlockVectorAdapter : public IByteBlockColumn, public DestructableObject
 {
+	std::unique_ptr<byte_block_array_ptr> byte_blocks;
+	std::unique_ptr<uint64_array_ptr> block_sizes;
 
-public:
+  public:
 	ByteBlockVectorAdapter(uint64_t length)
 	{
+		byte_blocks = std::make_unique<byte_block_array_ptr>(length);
+		block_sizes = std::make_unique<uint64_array_ptr>(length);
 	}
 
 	~ByteBlockVectorAdapter()
 	{
 	}
 
-	void SetSizesAndPointers(char** elements, uint64_t* sizes, uint64_t row_start, uint64_t block_size)
+	byte_block_array_ptr* blocks()
 	{
-		// use ByteBlockVector here to populate buffers
+		return byte_blocks.get();
+	}
+
+	uint64_array_ptr* sizes()
+	{
+		return block_sizes.get();
+	}
+
+	void SetSizesAndPointers(const char** elements, uint64_t* sizes, uint64_t row_start, uint64_t block_size)
+	{
+		auto start_block = this->blocks()->get();
+		auto start_block_address = &start_block[row_start];
+
+		auto start_size = this->sizes()->get();
+		auto start_size_address = &start_size[row_start];
+
+
+		memcpy(elements, start_block_address, block_size * 8);
+		memcpy(sizes, start_size_address, block_size * 8);
 	}
 };
 
@@ -792,7 +816,7 @@ public:
     (*columnTypes)[colNr] = FstColumnType::DOUBLE_64;
   }
 
-  IByteBlockColumn* add_byte_block_column(unsigned col_nr)
+	ByteBlockVectorAdapter* add_byte_block_column(unsigned col_nr)
   {
 		auto byte_block = new ByteBlockVectorAdapter(this->NrOfRows());
 
@@ -801,7 +825,7 @@ public:
 		(*columns)[col_nr] = s_byte_block;
 		(*columnTypes)[col_nr] = FstColumnType::BYTE_BLOCK;
 
-		return static_cast<IByteBlockColumn*>(byte_block);
+		return byte_block;
 	}
 
 	void SetFactorColumn(IFactorColumn* factorColumn, int colNr)

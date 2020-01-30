@@ -28,6 +28,52 @@
 
 #include <interface/ibyteblockcolumn.h>
 
+
+// helper function for memory safe char* array
+class byte_block_array_ptr
+{
+  const char** array_address = nullptr;
+
+public:
+  byte_block_array_ptr(uint64_t size)
+  {
+    this->array_address = new const char* [size];
+  }
+
+  ~byte_block_array_ptr()
+  {
+    delete[] array_address;  // no blocks are deleted here, just the array of pointers!
+  }
+
+  const char** get() const
+  {
+    return array_address;
+  }
+};
+
+
+// helper function for memory safe uint64_t array
+class uint64_array_ptr
+{
+  uint64_t* array_address = nullptr;
+
+public:
+  uint64_array_ptr(uint64_t size)
+  {
+    this->array_address = new uint64_t[size];
+  }
+
+  ~uint64_array_ptr()
+  {
+    delete[] array_address;
+  }
+
+  uint64_t* get() const
+  {
+    return array_address;
+  }
+};
+
 void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, IByteBlockColumn* byte_block_writer,
   uint64_t nr_of_rows, uint32_t compression);
 

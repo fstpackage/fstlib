@@ -48,7 +48,7 @@
 // #include <compression/compressor.h>
 
 
-inline uint64_t store_byte_block_v13(std::ofstream& fst_file, char** elements, uint64_t* sizes, uint64_t length)
+inline uint64_t store_byte_block_v13(std::ofstream& fst_file, const char** elements, uint64_t* sizes, uint64_t length)
 {
   // fits on the stack (8 * BLOCK_SIZE_BYTE_BLOCK) 
   //const std::unique_ptr<char*[]> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointer on the stack
@@ -65,52 +65,8 @@ inline uint64_t store_byte_block_v13(std::ofstream& fst_file, char** elements, u
 
   //fst_file.write(byte_block_writer->activeBuf, tot_size);
 
-  return 4;
+  return 0;
 }
-
-
-class byte_block_array_ptr
-{
-  char** array_address = nullptr;
-
-public:
-  byte_block_array_ptr(uint64_t size)
-  {
-    this->array_address = new char* [size];
-  }
-
-  ~byte_block_array_ptr()
-  {
-    delete[] array_address;
-  }
-
-  char** get() const
-  {
-    return array_address;
-  }
-};
-
-
-class uint64_array_ptr
-{
-  uint64_t* array_address = nullptr;
-
-public:
-  uint64_array_ptr(uint64_t size)
-  {
-    this->array_address = new uint64_t[size];
-  }
-
-  ~uint64_array_ptr()
-  {
-    delete[] array_address;
-  }
-
-  uint64_t* get() const
-  {
-    return array_address;
-  }
-};
 
 
 /* thread plan

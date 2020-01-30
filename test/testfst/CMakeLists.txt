@@ -4,7 +4,7 @@ set(testfst_SRCS
 	byte.cpp
 	date.cpp
 	factors.cpp
-	byteblock.cpp
+	byteblocktest.cpp
 	fstcompress.cpp
 	fstcoretest.cpp
 	fstreadtest.cpp
