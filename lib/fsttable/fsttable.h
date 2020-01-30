@@ -212,8 +212,8 @@ class ByteBlockVectorAdapter : public IByteBlockColumn, public DestructableObjec
   public:
 	ByteBlockVectorAdapter(uint64_t length)
 	{
-		byte_blocks = std::make_unique<byte_block_array_ptr>(length);
-		block_sizes = std::make_unique<uint64_array_ptr>(length);
+		byte_blocks = std::unique_ptr<byte_block_array_ptr>(new byte_block_array_ptr(length));
+		block_sizes = std::unique_ptr<uint64_array_ptr>(new uint64_array_ptr(length));
 	}
 
 	~ByteBlockVectorAdapter()
