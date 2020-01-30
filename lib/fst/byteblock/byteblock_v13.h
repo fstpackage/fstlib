@@ -28,10 +28,10 @@
 
 #include <interface/ibyteblockcolumn.h>
 
-void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, const IByteBlockColumn* byte_block_writer,
+void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, IByteBlockColumn* byte_block_writer,
   uint64_t nr_of_rows, uint32_t compression);
 
-void read_byte_block_vec_v13(std::istream& fst_file, const IByteBlockColumn* byte_block, uint64_t block_pos, uint64_t start_row,
+void read_byte_block_vec_v13(std::istream& fst_file, IByteBlockColumn* byte_block, uint64_t block_pos, uint64_t start_row,
   uint64_t length, uint64_t size);
 
 #endif // BYTE_BLOCK_V13_H

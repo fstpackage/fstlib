@@ -55,7 +55,7 @@ class IFstTable
 
     virtual double* GetDoubleWriter(unsigned int colNr) = 0;
 
-    virtual const IByteBlockColumn* GetByteBlockWriter(unsigned int col_nr) = 0;
+    virtual IByteBlockColumn* GetByteBlockWriter(unsigned int col_nr) = 0;
 
     virtual IStringWriter* GetLevelWriter(unsigned int colNr) = 0;
 
@@ -72,7 +72,7 @@ class IFstTable
 	  // Reader interface
     virtual void InitTable(unsigned int nrOfCols, unsigned long long nrOfRows) = 0;
 
-    virtual const IByteBlockColumn* add_byte_block_column(unsigned col_nr) = 0;
+    virtual IByteBlockColumn* add_byte_block_column(unsigned col_nr) = 0;
 
     virtual void SetStringColumn(IStringColumn* stringColumn, int colNr) = 0;
 

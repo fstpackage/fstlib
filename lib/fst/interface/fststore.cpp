@@ -502,7 +502,7 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
     case FstColumnType::BYTE_BLOCK:
     {
         colTypes[colNr] = 13;
-        const IByteBlockColumn* p_byte_block = fstTable.GetByteBlockWriter(colNr);
+        IByteBlockColumn* p_byte_block = fstTable.GetByteBlockWriter(colNr);
         fdsWriteByteBlockVec_v13(myfile, p_byte_block, nrOfRows, compress);
         break;
     }
@@ -993,7 +993,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
     // byte block vector
     case 13:
     {
-      const IByteBlockColumn* byte_block = tableReader.add_byte_block_column(colSel);
+      IByteBlockColumn* byte_block = tableReader.add_byte_block_column(colSel);
       read_byte_block_vec_v13(myfile, byte_block, pos, firstRow, length, nrOfRows);
       break;
     }
