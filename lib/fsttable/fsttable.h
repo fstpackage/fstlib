@@ -204,14 +204,10 @@ public:
 
 class ByteBlockVectorAdapter : public IByteBlockColumn, public DestructableObject
 {
-	std::unique_ptr<char* []> p_byte_blocks;
-	std::unique_ptr<uint64_t []> p_sizes;
 
 public:
 	ByteBlockVectorAdapter(uint64_t length)
 	{
-		p_byte_blocks = std::unique_ptr<char* []>(new char*[std::max(length, 1ULL)]);
-		p_sizes = std::unique_ptr <uint64_t []>(new uint64_t[std::max(length, 1ULL)]);  // at least one element
 	}
 
 	~ByteBlockVectorAdapter()
