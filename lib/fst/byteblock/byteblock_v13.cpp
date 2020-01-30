@@ -39,6 +39,7 @@
 #define BYTE_BLOCK_HEADER_SIZE 8
 
 #include <cstring>
+#include <memory>
 
 #include <byteblock/byteblock_v13.h>
 #include <interface/ibyteblockcolumn.h>
