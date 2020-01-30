@@ -129,7 +129,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 
     myfile.write(meta, metaSize); // write block offset index
 
-    uint64_t* blockPos = reinterpret_cast<unsigned long long*>(&meta[CHAR_HEADER_SIZE]);
+    uint64_t* blockPos = reinterpret_cast<uint64_t*>(&meta[CHAR_HEADER_SIZE]);
     uint64_t fullSize = metaSize;
 
     for (uint64_t block = 0; block < nrOfBlocks; ++block)
