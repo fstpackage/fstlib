@@ -47,8 +47,7 @@
 // #include <compression/compressor.h>
 
 
-inline uint64_t store_byte_block_v13(std::ofstream& fst_file, std::shared_ptr<char* []> elements,
-  std::shared_ptr<uint64_t[]> sizes, uint64_t length)
+inline uint64_t store_byte_block_v13(std::ofstream& fst_file, char** elements, std::shared_ptr<uint64_t[]> sizes, uint64_t length)
 {
   // fits on the stack (8 * BLOCK_SIZE_BYTE_BLOCK) 
   //const std::unique_ptr<char*[]> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointer on the stack
@@ -68,6 +67,27 @@ inline uint64_t store_byte_block_v13(std::ofstream& fst_file, std::shared_ptr<ch
   return 4;
 }
 
+
+class byte_block_array_ptr
+{
+  char** array_address = nullptr;
+
+public:
+  byte_block_array_ptr(uint64_t size)
+  {
+    this->array_address = new char* [size];
+  }
+
+  ~byte_block_array_ptr()
+  {
+    delete[] array_address;
+  }
+
+  char** get() const
+  {
+    return array_address;
+  }
+};
 
 /* thread plan
 
@@ -125,24 +145,26 @@ void fdsWriteByteBlockVec_v13(std::ofstream& fst_file, IByteBlockColumn* byte_bl
   for (uint64_t block = 0; block < nr_of_blocks; ++block)
   {
     // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
-    std::shared_ptr<char* []> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
+    byte_block_array_ptr elements(BLOCK_SIZE_BYTE_BLOCK);
+
     std::shared_ptr<uint64_t []> sizes(new uint64_t[BLOCK_SIZE_BYTE_BLOCK]);  // array of sizes on heap
 
     const uint64_t row_start = block * BLOCK_SIZE_BYTE_BLOCK;
 
     // fill buffers on main thread (to facilitate single clients with single threaded memory access models)
-    byte_block_writer->SetSizesAndPointers(elements, sizes, row_start, BLOCK_SIZE_BYTE_BLOCK);
+    byte_block_writer->SetSizesAndPointers(elements.get(), sizes, row_start, BLOCK_SIZE_BYTE_BLOCK);
 
     // parallel compression from this point on
-    full_size += store_byte_block_v13(fst_file, elements, sizes, BLOCK_SIZE_BYTE_BLOCK);
+    full_size += store_byte_block_v13(fst_file, elements.get(), sizes, BLOCK_SIZE_BYTE_BLOCK);
     block_pos[block] = full_size;
   }
 
   // define data pointer and byte block length buffers (of size 8 * BLOCK_SIZE_BYTE_BLOCK)
-  std::shared_ptr<char* []> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
+  byte_block_array_ptr elements(BLOCK_SIZE_BYTE_BLOCK);
+  //std::shared_ptr<char* []> elements(new char* [BLOCK_SIZE_BYTE_BLOCK]);  // array of pointers on heap
   std::shared_ptr<uint64_t[]> sizes(new uint64_t[BLOCK_SIZE_BYTE_BLOCK]);  // array of sizes on heap
 
-  full_size += store_byte_block_v13(fst_file, elements, sizes, nr_of_rows - nr_of_blocks * BLOCK_SIZE_BYTE_BLOCK);
+  full_size += store_byte_block_v13(fst_file, elements.get(), sizes, nr_of_rows - nr_of_blocks * BLOCK_SIZE_BYTE_BLOCK);
   block_pos[nr_of_blocks] = full_size;
 
   fst_file.seekp(cur_pos + BYTE_BLOCK_HEADER_SIZE);

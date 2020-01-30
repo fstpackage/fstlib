@@ -218,8 +218,7 @@ public:
 	{
 	}
 
-	void SetSizesAndPointers(std::shared_ptr<char* []> elements,
-		std::shared_ptr<uint64_t[]> sizes, uint64_t row_start, uint64_t block_size)
+	void SetSizesAndPointers(char** elements, std::shared_ptr<uint64_t[]> sizes, uint64_t row_start, uint64_t block_size)
 	{
 		// use ByteBlockVector here to populate buffers
 	}
