@@ -66,9 +66,9 @@ TEST_F(ByteBlockTest, SmallVec)
   }
 
   uint64_t size = pos;
-  const std::unique_ptr<char[]> buffer = std::unique_ptr<char[]>(new char[size + 8ULL]);
+  const auto buffer = std::unique_ptr<char[]>(new char[size + 8ULL]);
 
-  int nr_of_longs = static_cast<int>((size + 8ULL) / 8);
+  const int nr_of_longs = static_cast<int>((size + 8ULL) / 8);
   uint64_t* values = reinterpret_cast<uint64_t*>(buffer.get());
   
   for (int count = 0; count < nr_of_longs; ++count)
