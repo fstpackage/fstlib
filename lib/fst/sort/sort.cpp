@@ -122,6 +122,20 @@ void fst_merge_sort(const int* left_p, const int* right_p, const int length_left
 }
 
 
+inline void order_radix(int* vec, int length, int* buffer, int index1[256], int64_t sqr1, const int64_t single_bin_size)
+{
+  if (sqr1 != single_bin_size) {
+    for (int pos = 0; pos < length; ++pos) {
+      const int value = vec[pos];
+      const int target_pos = index1[value & 255]++;
+      buffer[target_pos] = value;
+    }
+  } else {  // a single populated bin
+    memcpy(buffer, vec, length * sizeof(int));
+  }
+}
+
+
 void fst_radix_sort(int* vec, int length, int* buffer)
 {
   int index1[256];
@@ -242,53 +256,17 @@ void fst_radix_sort(int* vec, int length, int* buffer)
     cum_pos4 += old_val;
   }
 
+  const int64_t single_bin_size = static_cast<int64_t>(length)* static_cast<int64_t>(length);
+
   // phase 1: sort on byte 1
-
-  const int64_t single_bin_size = static_cast<int64_t>(length) * static_cast<int64_t>(length);
-
-  if (sqr1 != single_bin_size) {
-    for (int pos = 0; pos < length; ++pos) {
-      const int value = vec[pos];
-      const int target_pos = index1[value & 255]++;
-      buffer[target_pos] = value;
-    }
-  } else {  // a single populated bin
-    memcpy(buffer, vec, length * sizeof(int));
-  }
+  order_radix(vec, length, buffer, index1, sqr1, single_bin_size);
 
   // phase 2: sort on byte 2
-
-  if (sqr2 != single_bin_size) {
-    for (int pos = 0; pos < length; ++pos) {
-      const int value = buffer[pos];
-      const int target_pos = index2[(value >> 8) & 255]++;
-      vec[target_pos] = value;
-    }
-  } else {  // a single populated bin
-    memcpy(vec, buffer, length * sizeof(int));
-  }
+  order_radix(buffer, length, vec, index2, sqr2, single_bin_size);
 
   // phase 3: sort on byte 3
-
-  if (sqr3 != single_bin_size) {
-    for (int pos = 0; pos < length; ++pos) {
-      const int value = vec[pos];
-      const int target_pos = index3[(value >> 16) & 255]++;
-      buffer[target_pos] = value;
-    }
-  } else {  // a single populated bin
-    memcpy(buffer, vec, length * sizeof(int));
-  }
+  order_radix(vec, length, buffer, index3, sqr3, single_bin_size);
 
   // phase 4: sort on byte 3
-
-  if (sqr4 != single_bin_size) {
-    for (int pos = 0; pos < length; ++pos) {
-      const int value = buffer[pos];
-      const int target_pos = index4[((value >> 24) & 255) ^ 128]++;
-      vec[target_pos] = value;
-    }
-  } else {  // a single populated bin
-    memcpy(vec, buffer, length * sizeof(int));
-  }
+  order_radix(buffer, length, vec, index4, sqr4, single_bin_size);
 }
