@@ -28,7 +28,7 @@
 #include <sort/sort.h>
 
 
-void fst_quick_sort(int* vec, const int length, const int pivot) {
+void fst_quick_sort(int* vec, int length, int pivot) {
 
   int pos_left = 0;
   int pos_right = length - 1;
@@ -62,7 +62,7 @@ void fst_quick_sort(int* vec, const int length, const int pivot) {
     fst_quick_sort(vec, pos_left, piv);
   }
   else if (pos_left == 2 && vec[0] > vec[1]) {
-  // swap first 2 elements
+    // swap first 2 elements
     const int tmp = vec[1];
     vec[1] = vec[0];
     vec[0] = tmp;
@@ -80,7 +80,7 @@ void fst_quick_sort(int* vec, const int length, const int pivot) {
 }
 
 
-void fst_merge_sort(const int* left_p, const int* right_p, const int length_left, int length_right, int* res_p) {
+void fst_merge_sort(const int* left_p, const int* right_p, int length_left, int length_right, int* res_p) {
 
   int pos_left = 0;
   int pos_right = 0;
@@ -214,42 +214,42 @@ void fst_radix_sort(int* vec, int length, int* buffer)
   index4[0] = 0;
 
   // test for single populated bin
-  int64_t sqr1 = static_cast<int64_t>(cum_pos1) * static_cast<int64_t>(cum_pos1);
-  int64_t sqr2 = static_cast<int64_t>(cum_pos2) * static_cast<int64_t>(cum_pos2);
-  int64_t sqr3 = static_cast<int64_t>(cum_pos3) * static_cast<int64_t>(cum_pos3);
-  int64_t sqr4 = static_cast<int64_t>(cum_pos4) * static_cast<int64_t>(cum_pos4);
+  int64_t sqr1 = cum_pos1 * cum_pos1;
+  int64_t sqr2 = cum_pos2 * cum_pos2;
+  int64_t sqr3 = cum_pos3 * cum_pos3;
+  int64_t sqr4 = cum_pos4 * cum_pos4;
 
   for (int ind = 1; ind < 256; ++ind) {
 
     int old_val = index1[ind];
-    sqr1 += static_cast<int64_t>(old_val) * static_cast<int64_t>(old_val);
+    sqr1 += old_val * old_val;
     index1[ind] = cum_pos1;
     cum_pos1 += old_val;
 
     old_val = index2[ind];
-    sqr2 += static_cast<int64_t>(old_val) * static_cast<int64_t>(old_val);
+    sqr2 += old_val * old_val;
     index2[ind] = cum_pos2;
     cum_pos2 += old_val;
 
     old_val = index3[ind];
-    sqr3 += static_cast<int64_t>(old_val) * static_cast<int64_t>(old_val);
+    sqr3 += old_val * old_val;
     index3[ind] = cum_pos3;
     cum_pos3 += old_val;
 
     old_val = index4[ind];
-    sqr4 += static_cast<int64_t>(old_val) * static_cast<int64_t>(old_val);
+    sqr4 += old_val * old_val;
     index4[ind] = cum_pos4;
     cum_pos4 += old_val;
   }
 
   // phase 1: sort on byte 1
 
-  const int64_t single_bin_size = static_cast<int64_t>(length) * static_cast<int64_t>(length);
+  int64_t single_bin_size = (int64_t) length * (int64_t) length;
 
   if (sqr1 != single_bin_size) {
     for (int pos = 0; pos < length; ++pos) {
-      const int value = vec[pos];
-      const int target_pos = index1[value & 255]++;
+      int value = vec[pos];
+      int target_pos = index1[value & 255]++;
       buffer[target_pos] = value;
     }
   } else {  // a single populated bin
@@ -260,8 +260,8 @@ void fst_radix_sort(int* vec, int length, int* buffer)
 
   if (sqr2 != single_bin_size) {
     for (int pos = 0; pos < length; ++pos) {
-      const int value = buffer[pos];
-      const int target_pos = index2[(value >> 8) & 255]++;
+      int value = buffer[pos];
+      int target_pos = index2[(value >> 8) & 255]++;
       vec[target_pos] = value;
     }
   } else {  // a single populated bin
@@ -272,8 +272,8 @@ void fst_radix_sort(int* vec, int length, int* buffer)
 
   if (sqr3 != single_bin_size) {
     for (int pos = 0; pos < length; ++pos) {
-      const int value = vec[pos];
-      const int target_pos = index3[(value >> 16) & 255]++;
+      int value = vec[pos];
+      int target_pos = index3[(value >> 16) & 255]++;
       buffer[target_pos] = value;
     }
   } else {  // a single populated bin
@@ -284,8 +284,8 @@ void fst_radix_sort(int* vec, int length, int* buffer)
 
   if (sqr4 != single_bin_size) {
     for (int pos = 0; pos < length; ++pos) {
-      const int value = buffer[pos];
-      const int target_pos = index4[((value >> 24) & 255) ^ 128]++;
+      int value = buffer[pos];
+      int target_pos = index4[((value >> 24) & 255) ^ 128]++;
       vec[target_pos] = value;
     }
   } else {  // a single populated bin

@@ -66,11 +66,11 @@ TEST_F(ByteBlockTest, SmallVec)
   }
 
   uint64_t size = pos;
-  std::unique_ptr<char[]> buffer = std::make_unique<char[]>(size + 8ULL);
+  const std::unique_ptr<char[]> buffer = std::unique_ptr<char[]>(new char[size + 8ULL]);
 
   int nr_of_longs = static_cast<int>((size + 8ULL) / 8);
   uint64_t* values = reinterpret_cast<uint64_t*>(buffer.get());
-
+  
   for (int count = 0; count < nr_of_longs; ++count)
   {
     values[count] = -12354254423 + static_cast<uint64_t>(count) * 10000;
