@@ -14,6 +14,7 @@ set(libfst_SRCS
 	factor/factor_v7.cpp
 	blockstreamer/blockstreamer_v2.cpp
 	integer64/integer64_v11.cpp
+	sort/sort.cpp
 )
 
 # declare fst library
