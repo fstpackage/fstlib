@@ -25,7 +25,7 @@ protected:
 
 TEST_F(SortLogicalTest, Zero)
 {
-  const int vec_size = 10000;
+  const int vec_size = 1024;
 
   const std::unique_ptr<uint32_t>	vec = std::unique_ptr<uint32_t>(new uint32_t[vec_size]);
 	int* vec_p = reinterpret_cast<int*>(vec.get());
