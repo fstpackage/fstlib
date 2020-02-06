@@ -26,10 +26,14 @@
 #define FST_SORT_H
 
 
-void fst_radix_sort(int* vec, int length, int* buffer);
+void radix_ssort_logical(int* vec, int length);
 
-void fst_merge_sort(const int* left_p, const int* right_p, int length_left, int length_right, int* res_p);
+//void radix_order_logical(int* vec, int length, int* buffer, int* order);
 
-void fst_quick_sort(int* vec, int length, int pivot);
+void radix_sort_int(int* vec, int length, int* buffer);
+
+void merge_sort_int(const int* left_p, const int* right_p, int length_left, int length_right, int* res_p);
+
+void quick_sort_int(int* vec, int length, int pivot);
 
 #endif  // FST_SORT_H

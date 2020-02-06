@@ -28,7 +28,7 @@
 #include <sort/sort.h>
 
 
-void fst_quick_sort(int* vec, int length, int pivot) {
+void quick_sort_int(int* vec, int length, int pivot) {
 
   int pos_left = 0;
   int pos_right = length - 1;
@@ -59,7 +59,7 @@ void fst_quick_sort(int* vec, int length, int pivot) {
 
   if (pos_left > 2) {
     const int piv = (vec[0] + vec[pos_left / 2] + vec[pos_left - 1]) / 3;
-    fst_quick_sort(vec, pos_left, piv);
+    quick_sort_int(vec, pos_left, piv);
   }
   else if (pos_left == 2 && vec[0] > vec[1]) {
     // swap first 2 elements
@@ -70,7 +70,7 @@ void fst_quick_sort(int* vec, int length, int pivot) {
 
   if (pos_left < (length - 2)) {
     const int piv = (vec[pos_left] + vec[(length + pos_left) / 2] + vec[length - 1]) / 3;
-    fst_quick_sort(&vec[pos_left], length - pos_left, piv);
+    quick_sort_int(&vec[pos_left], length - pos_left, piv);
   } else if (pos_left == (length - 2) && vec[pos_left] > vec[pos_left + 1]) {
     // swap last 2 elements if in reverse order
     const int tmp = vec[pos_left];
@@ -80,7 +80,7 @@ void fst_quick_sort(int* vec, int length, int pivot) {
 }
 
 
-void fst_merge_sort(const int* left_p, const int* right_p, int length_left, int length_right, int* res_p) {
+void merge_sort_int(const int* left_p, const int* right_p, int length_left, int length_right, int* res_p) {
 
   int pos_left = 0;
   int pos_right = 0;
@@ -131,6 +131,7 @@ inline void radix_fill1(int* buffer, int* vec, int length, int index1[256])
   }
 }
 
+
 inline void radix_fill2(int* vec, int* buffer, int length, int index2[256])
 {
   for (int pos = 0; pos < length; ++pos) {
@@ -139,6 +140,7 @@ inline void radix_fill2(int* vec, int* buffer, int length, int index2[256])
     vec[target_pos] = value;
   }
 }
+
 
 inline void radix_fill3(int* buffer, int* vec, int length, int index3[256])
 {
@@ -149,6 +151,7 @@ inline void radix_fill3(int* buffer, int* vec, int length, int index3[256])
   }
 }
 
+
 inline void radix_fill4(int* vec, int* buffer, int length, int index4[256])
 {
   for (int pos = 0; pos < length; ++pos) {
@@ -158,7 +161,8 @@ inline void radix_fill4(int* vec, int* buffer, int length, int index4[256])
   }
 }
 
-void fst_radix_sort(int* vec, int length, int* buffer)
+
+void radix_sort_int(int* vec, int length, int* buffer)
 {
   int index1[256];
   int index2[256];
