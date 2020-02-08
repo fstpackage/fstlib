@@ -50,8 +50,6 @@
  */
 void count_logical(int* vec, const int length, int counts[3])
 {
-  auto uvec = reinterpret_cast<uint32_t*>(vec);
-
   int nr_of_threads = 1;  // single threaded for small sizes
 
   // algorithm to determine optimal threads
@@ -64,10 +62,13 @@ void count_logical(int* vec, const int length, int counts[3])
   }
 
   // algorithm to determine optimal threads
- 
-  const double batch_size = static_cast<double>(length + 0.01) / static_cast<double>(nr_of_threads);
 
-  int index[3 * MAX_SORT_THREADS] = { 0 };
+  const int half_length = length / 2;
+  const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
+
+  const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
+
+  int index[3 * MAX_SORT_THREADS] = { 0 };  // a logical can have 3 possible values
 
 #pragma omp parallel num_threads(nr_of_threads)
   {
@@ -77,13 +78,13 @@ void count_logical(int* vec, const int length, int counts[3])
     {
       int pos = ((static_cast<int>(batch * batch_size) + 127) / 128) * 128;
       int pos_next = ((static_cast<int>((batch + 1) * batch_size) + 127) / 128) * 128;
-
-      pos_next = std::min(pos_next, length);  // last batch is capped
+      pos_next = std::min(pos_next, half_length);  // last batch is capped
 
       int partial_index[4] = { 0 };  // last element should have zero counts
 
       for (; pos < pos_next; pos++) {
-        ++partial_index[((uvec[pos] >> 30) | (uvec[pos] & 1)) & 3];
+        ++partial_index[((pair_vec[pos] >> 30) | (pair_vec[pos] & 1)) & 3];
+        ++partial_index[((pair_vec[pos] >> 62) | ((pair_vec[pos] >> 32) & 1)) & 3];
       }
 
       index[batch * 3] = partial_index[0];
@@ -98,8 +99,19 @@ void count_logical(int* vec, const int length, int counts[3])
     counts[LOGICAL_NA] += index[3 * batch + 2];
   }
 
-  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length)
+  if (length % 2 == 1)  // last element
+  {
+    const auto last_element = reinterpret_cast<uint32_t*>(vec)[length - 1];
+    std::cout << "last: " << last_element << "\n";
+    ++counts[((last_element >> 30) | (last_element & 1)) & 3];
+  }
+
+  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
+    std::cout << "count NA: " << counts[LOGICAL_NA] << ", ";
+    std::cout << "count TRUE: " << counts[LOGICAL_TRUE] << ", ";
+    std::cout << "count FALSE: " << counts[LOGICAL_FALSE] << std::flush;
     throw std::runtime_error("non-logical elements detected in vector");
+  }
 }
 
 

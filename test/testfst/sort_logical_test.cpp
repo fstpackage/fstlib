@@ -23,12 +23,17 @@ protected:
 };
 
 
-TEST_F(SortLogicalTest, Zero)
+TEST_F(SortLogicalTest, ConstVec)
 {
   const int vec_size = 2049;
 
   const std::unique_ptr<uint32_t>	vec = std::unique_ptr<uint32_t>(new uint32_t[vec_size]);
 	int* vec_p = reinterpret_cast<int*>(vec.get());
+
+	const int small_size = 6;
+	for (int pos = 0; pos < small_size; pos++) vec_p[pos] = 1;
+
+	radix_sort_logical(vec_p, small_size);
 
 	for (int pos = 0; pos < vec_size; pos++) vec_p[pos] = 0;
 
