@@ -26,9 +26,9 @@
 #define FST_SORT_H
 
 
-void radix_ssort_logical(int* vec, int length);
+void radix_sort_logical(int* vec, int length);
 
-//void radix_order_logical(int* vec, int length, int* buffer, int* order);
+void radix_msort_logical(int* vec, int length, int* order);
 
 void radix_sort_int(int* vec, int length, int* buffer);
 

@@ -25,6 +25,7 @@
 #include <cstdint>   // int64_t
 #include <cstring>   // memcpy
 #include <algorithm> // max
+#include <stdexcept>
 
 #include <sort/sort.h>
 #include <interface/openmphelper.h>
@@ -32,36 +33,41 @@
 #include <iostream>
 
 
-// inline void radix_fill4(int* vec, int* buffer, int length, int index4[256])
-// {
-//   for (int pos = 0; pos < length; ++pos) {
-//     const int value = buffer[pos];
-//     const int target_pos = index4[((value >> 24) & 255) ^ 128]++;
-//     vec[target_pos] = value;
-//   }
-// }
+#define MAX_SORT_THREADS 32
+
+#define LOGICAL_NA 2
+#define LOGICAL_FALSE 0
+#define LOGICAL_TRUE 1
 
 
-/*
- In place sorting of a logical vector
-
- buffer must have a (byte) size equal to vec
- 
-*/
-void radix_ssort_logical(int* vec, int length)
+/**
+ * \brief Counts occurrences of NA, 0 and 1 in logical vector 'vec'.
+ * 
+ * \param vec a logical vector to be counted
+ * \param length length of 'vec'
+ * \param counts count vector, will be filled with counts for FALSE,
+ * TRUE and NA (in that order)
+ */
+void count_logical(int* vec, const int length, int counts[3])
 {
-  // phase 1: compact to bytes and count
-
-  uint32_t* uvec = reinterpret_cast<uint32_t*>(vec);
+  auto uvec = reinterpret_cast<uint32_t*>(vec);
 
   int nr_of_threads = 1;  // single threaded for small sizes
 
-  if (length > 1024) {
-    nr_of_threads = std::min(GetFstThreads(), 4);
+  // algorithm to determine optimal threads
+
+  if (length > 1048576) {
+    nr_of_threads = std::min(GetFstThreads(), MAX_SORT_THREADS);
+  }
+  else if (length > 131072) {
+    nr_of_threads = 2;
   }
 
-  const int batch_size = (length + nr_of_threads - 1) / nr_of_threads;
-  int index[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  // algorithm to determine optimal threads
+ 
+  const double batch_size = static_cast<double>(length + 0.01) / static_cast<double>(nr_of_threads);
+
+  int index[3 * MAX_SORT_THREADS] = { 0 };
 
 #pragma omp parallel num_threads(nr_of_threads)
   {
@@ -69,107 +75,95 @@ void radix_ssort_logical(int* vec, int length)
 #pragma omp for
     for (int batch = 0; batch < nr_of_threads; batch++)
     {
-      const int pos_next = std::min((batch + 1) * batch_size, length);
-      const int index_nr = batch * 3;
+      int pos = ((static_cast<int>(batch * batch_size) + 127) / 128) * 128;
+      int pos_next = ((static_cast<int>((batch + 1) * batch_size) + 127) / 128) * 128;
 
-      for (int pos = batch * batch_size; pos < pos_next; ++pos) {
-        ++index[index_nr + ((uvec[pos] >> 30) | (uvec[pos] & 1)) & 3];
+      pos_next = std::min(pos_next, length);  // last batch is capped
+
+      int partial_index[4] = { 0 };  // last element should have zero counts
+
+      for (; pos < pos_next; pos++) {
+        ++partial_index[((uvec[pos] >> 30) | (uvec[pos] & 1)) & 3];
       }
+
+      index[batch * 3] = partial_index[0];
+      index[batch * 3 + 1] = partial_index[1];
+      index[batch * 3 + 2] = partial_index[2];
     }
   }
 
-  index[0] += index[3] + index[6] + index[9 ];
-  index[1] += index[4] + index[7] + index[10];
-  index[2] += index[5] + index[8] + index[11];
+  for (int batch = 0; batch < nr_of_threads; batch++) {
+    counts[LOGICAL_FALSE] += index[3 * batch];
+    counts[LOGICAL_TRUE] += index[3 * batch + 1];
+    counts[LOGICAL_NA] += index[3 * batch + 2];
+  }
 
-  if ((index[0] + index[1] + index[2]) != length) throw("Count error, fix code");
-
-  int byte_na = (1 << 31);  // NA value
-
-  for (int pos = 0; pos < index[2]; pos++) vec[pos] = byte_na;
-
-  memset(&(vec[index[2]]), 0, sizeof(int) * index[0]);  // all zero's
-
-  for (int pos = index[0] + index[2]; pos < length; pos++) vec[pos] = 1;
+  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length)
+    throw std::runtime_error("non-logical elements detected in vector");
 }
 
-/*
- In place sorting of a logical vector
 
- buffer must have a (byte) size equal to vec
-
-*/
-void radix_msort_logical(int* vec, int length, int* buffer)
+/**
+ * \brief Sorts a logical vector 'vec' using counts of the occurrences of NA, FALSE and TRUE
+ * 
+ * \param vec a logical vector to be sorted
+ * \param length length of 'vec'
+ * \param counts count vector containing counts for FALSE, TRUE and NA (in that order)
+ */
+inline void fill_logical(int* vec, const int length, const int counts[3])
 {
-  int index[256];
-  uint32_t index_values[256];
+  const int byte_na = (1 << 31);  // NA value
 
-  // phase 1: compact to bytes and count
+  for (int pos = 0; pos < counts[LOGICAL_NA]; pos++) vec[pos] = byte_na;
 
-  // initialize
-  for (int ind = 0; ind < 256; ++ind) {
-    index[ind] = 0;
-    index_values[ind] = 0;
+  memset(&(vec[counts[LOGICAL_NA]]), 0, sizeof(int) * counts[LOGICAL_FALSE]);  // all zero's
+
+  for (int pos = counts[LOGICAL_FALSE] + counts[LOGICAL_NA]; pos < length; pos++) vec[pos] = 1;
+}
+
+
+/**
+ * \brief Sorts a logical vector
+ * \param vec logical vector to be sorted
+ * \param length number of logical (4 byte) elements
+ */
+void radix_sort_logical(int* vec, int length)
+{
+  // phase 1: count number of occurrences
+
+  int counts[3] = { 0 };
+
+  count_logical(vec, length, counts);
+
+  fill_logical(vec, length, counts);
+}
+
+/**
+ * \brief Sorts a logical vector 'vec' and fills an integer 'order_out' vector with the
+ * resulting order. The order will be equal to a range 0 to (length - 1) but rearranged in the same
+ * manner as the logical vector. All elements in parameter 'order_out' will be overwritten.
+ * \param vec logical vector to be sorted
+ * \param length number of logical (4 byte) elements
+ * \param order_out calculated order, will contain each value in the range 0 to (length - 1)
+ */
+void radix_sort_logical_order(int* vec, const int length, int* order_out)
+{
+  // phase 1: count number of occurrences
+
+  int counts[3] = { 0 };
+
+  count_logical(vec, length, counts);
+
+  // phase 2: fill order vector
+
+  int nr_of_threads = 1;  // single threaded for small sizes
+
+  if (length > 8192) {
+    nr_of_threads = std::min(GetFstThreads(), MAX_SORT_THREADS);
   }
 
-  uint32_t* uvec = reinterpret_cast<uint32_t*>(vec);
 
-  // 4 bytes fit 16 logicals
-  const int batch_length = length / 4;
+  // phase 3: fill logical vector
 
-  for (int pos = 0; pos < batch_length; ++pos) {
-    const int ind = 4 * pos;
-
-    // create hash in range 0 - 255
-    const uint32_t compact =
-      ((uvec[ind] >> 24) & 128) | ((uvec[ind]) & 1) |
-      ((uvec[ind + 1] >> 25) & 64) | ((uvec[ind + 1] << 1) & 2) |
-      ((uvec[ind + 2] >> 26) & 32) | ((uvec[ind + 2] << 2) & 4) |
-      ((uvec[ind + 3] >> 27) & 16) | ((uvec[ind + 3] << 3) & 8);
-
-    ++index[compact];
-  }
-
-  for (uint32_t val0 = 0; val0 < 3; ++val0)
-  {
-    for (uint32_t val1 = 0; val1 < 3; ++val1)
-    {
-      for (uint32_t val2 = 0; val2 < 3; ++val2)
-      {
-        for (uint32_t val3 = 0; val3 < 3; ++val3)
-        {
-          //const uint32_t val = (val3 << 6) | (val2 << 4) | (val1 << 2) | val0;
-          //index[val] = 
-        }
-      }
-    }
-  }
-
-  // int start_pos = 4 * batch_length;
-  // int end_length = length - start_pos;
-  // 
-  // uint32_t compact = 0;
-  // for (int pos = 0; pos < end_length; ++pos) {
-  //   compact |=
-  //     (uvec[start_pos + pos] >> 24 + pos) & (2 ** (7 - pos)) | (uvec[start_pos + pos] & (2 ** pos));
-  // }
-
-  // cumulative positions
-  int cum_pos = index[0];
-
-  index[0] = 0;
-
-  // test for single populated bin
-  int64_t sqr = static_cast<int64_t>(cum_pos)* static_cast<int64_t>(cum_pos);
-
-  for (int ind = 1; ind < 256; ++ind) {
-
-    int64_t old_val = index[ind];
-    sqr += old_val * old_val;
-    index[ind] = cum_pos;
-    cum_pos += old_val;
-  }
-
-  // phase 2: determine counts of NA, TRUE and FALSE
-
+  fill_logical(vec, length, counts);
 }
