@@ -45,37 +45,22 @@
  * 
  * \param vec a logical vector to be counted
  * \param length length of 'vec'
- * \param counts count vector, will be filled with counts for FALSE,
- * TRUE and NA (in that order)
+ * \param index count vector for each possible value and each thread, counts are for FALSE,
+ * TRUE and NA (in that order).
+ * \param nr_of_threads number of threads to use for counting
+ * \param batch_size size of each thread batch
  */
-void count_logical(int* vec, const int length, int counts[3])
+inline void count_logical(int* vec, const int length, int index[3 * MAX_SORT_THREADS], const int nr_of_threads)
 {
-  int nr_of_threads = 1;  // single threaded for small sizes
-
-  // algorithm to determine optimal threads
-
-  if (length > 1048576) {
-    nr_of_threads = std::min(GetFstThreads(), MAX_SORT_THREADS);
-  }
-  else if (length > 131072) {
-    nr_of_threads = 2;
-  }
-
-  // algorithm to determine optimal threads
-
+  const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
   const int half_length = length / 2;
   const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
-
-  const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
-
-  int index[3 * MAX_SORT_THREADS] = { 0 };  // a logical can have 3 possible values
 
 #pragma omp parallel num_threads(nr_of_threads)
   {
     // count occurrences of 0, 1, and NA
 #pragma omp for
-    for (int batch = 0; batch < nr_of_threads; batch++)
-    {
+    for (int batch = 0; batch < nr_of_threads; batch++) {
       int pos = ((static_cast<int>(batch * batch_size) + 127) / 128) * 128;
       int pos_next = ((static_cast<int>((batch + 1) * batch_size) + 127) / 128) * 128;
       pos_next = std::min(pos_next, half_length);  // last batch is capped
@@ -93,24 +78,9 @@ void count_logical(int* vec, const int length, int counts[3])
     }
   }
 
-  for (int batch = 0; batch < nr_of_threads; batch++) {
-    counts[LOGICAL_FALSE] += index[3 * batch];
-    counts[LOGICAL_TRUE] += index[3 * batch + 1];
-    counts[LOGICAL_NA] += index[3 * batch + 2];
-  }
-
-  if (length % 2 == 1)  // last element
-  {
+  if (length % 2 == 1) {  // add last element to last batch
     const auto last_element = reinterpret_cast<uint32_t*>(vec)[length - 1];
-    std::cout << "last: " << last_element << "\n";
-    ++counts[((last_element >> 30) | (last_element & 1)) & 3];
-  }
-
-  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
-    std::cout << "count NA: " << counts[LOGICAL_NA] << ", ";
-    std::cout << "count TRUE: " << counts[LOGICAL_TRUE] << ", ";
-    std::cout << "count FALSE: " << counts[LOGICAL_FALSE] << std::flush;
-    throw std::runtime_error("non-logical elements detected in vector");
+    ++index[3 * (nr_of_threads - 1) + (((last_element >> 30) | (last_element & 1)) & 3)];
   }
 }
 
@@ -143,39 +113,78 @@ void radix_sort_logical(int* vec, int length)
 {
   // phase 1: count number of occurrences
 
+  int nr_of_threads = 1;  // single threaded for small sizes
+
+  // algorithm to determine optimal threads
+
+  if (length > 1048576) {
+    nr_of_threads = std::min(GetFstThreads(), MAX_SORT_THREADS);
+  }
+  else if (length > 131072) {
+    nr_of_threads = 2;
+  }
+
+  // algorithm to determine optimal threads
+  int index[3 * MAX_SORT_THREADS] = { 0 };  // a logical can have 3 possible values
+
+  count_logical(vec, length, index, nr_of_threads);
+
   int counts[3] = { 0 };
 
-  count_logical(vec, length, counts);
+  for (int batch = 0; batch < nr_of_threads; batch++) {
+    counts[LOGICAL_FALSE] += index[3 * batch];
+    counts[LOGICAL_TRUE] += index[3 * batch + 1];
+    counts[LOGICAL_NA] += index[3 * batch + 2];
+  }
+
+  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
+    throw std::runtime_error("non-logical elements detected in vector");
+  }
 
   fill_logical(vec, length, counts);
 }
 
 /**
- * \brief Sorts a logical vector 'vec' and fills an integer 'order_out' vector with the
- * resulting order. The order will be equal to a range 0 to (length - 1) but rearranged in the same
- * manner as the logical vector. All elements in parameter 'order_out' will be overwritten.
+ * \brief Sorts a logical vector 'vec' in ascending order. An integer vector 'order' will be rearranged in exactly
+ * the same manner. If parameter 'default_order' is set to true, the 'order' vector will be assumed to contain
+ * the (ordered) range 0 to (length - 1), speeding up the sorting process.
  * \param vec logical vector to be sorted
  * \param length number of logical (4 byte) elements
- * \param order_out calculated order, will contain each value in the range 0 to (length - 1)
+ * \param order order of elements in 'vec' as compared to , will contain each value in the range 0 to (length - 1)
+ * \param default_order if true will assume parameter 'order' to contain the range 0 to (length - 1). This reduces
+ * computational complexity and will speed up sorting.
  */
-void radix_sort_logical_order(int* vec, const int length, int* order_out)
+void radix_sort_logical_order(int* vec, const int length, int* order, bool default_order)
 {
   // phase 1: count number of occurrences
 
-  int counts[3] = { 0 };
-
-  count_logical(vec, length, counts);
-
-  // phase 2: fill order vector
-
   int nr_of_threads = 1;  // single threaded for small sizes
 
-  if (length > 8192) {
+  // algorithm to determine optimal threads
+
+  if (length > 1048576) {
     nr_of_threads = std::min(GetFstThreads(), MAX_SORT_THREADS);
   }
+  else if (length > 131072) {
+    nr_of_threads = 2;
+  }
 
+  // algorithm to determine optimal threads
+  int counts[3] = { 0 };
 
-  // phase 3: fill logical vector
+  int index[3 * MAX_SORT_THREADS] = { 0 };  // a logical can have 3 possible values
+
+  count_logical(vec, length, counts, nr_of_threads);
+
+  for (int batch = 0; batch < nr_of_threads; batch++) {
+    counts[LOGICAL_FALSE] += index[3 * batch];
+    counts[LOGICAL_TRUE] += index[3 * batch + 1];
+    counts[LOGICAL_NA] += index[3 * batch + 2];
+  }
+
+  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
+    throw std::runtime_error("non-logical elements detected in vector");
+  }
 
   fill_logical(vec, length, counts);
 }
