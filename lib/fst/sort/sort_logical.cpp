@@ -34,7 +34,6 @@
 
 
 #define MAX_SORT_THREADS 32
-
 #define LOGICAL_NA 2
 #define LOGICAL_FALSE 0
 #define LOGICAL_TRUE 1
@@ -90,10 +89,23 @@ inline void count_logical(int* vec, const int length, int index[3 * MAX_SORT_THR
  * 
  * \param vec a logical vector to be sorted
  * \param length length of 'vec'
+ * \param nr_of_threads number of threads that were used for counting
  * \param counts count vector containing counts for FALSE, TRUE and NA (in that order)
  */
-inline void fill_logical(int* vec, const int length, const int counts[3])
+inline void fill_logical(int* vec, const int length, const int index[3 * MAX_SORT_THREADS], const int nr_of_threads)
 {
+  int counts[3] = { 0 };
+
+  for (int batch = 0; batch < nr_of_threads; batch++) {
+    counts[LOGICAL_FALSE] += index[3 * batch];
+    counts[LOGICAL_TRUE] += index[3 * batch + 1];
+    counts[LOGICAL_NA] += index[3 * batch + 2];
+  }
+
+  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
+    throw std::runtime_error("non-logical elements detected in vector");
+  }
+
   const int byte_na = (1 << 31);  // NA value
 
   for (int pos = 0; pos < counts[LOGICAL_NA]; pos++) vec[pos] = byte_na;
@@ -127,21 +139,10 @@ void radix_sort_logical(int* vec, int length)
   // algorithm to determine optimal threads
   int index[3 * MAX_SORT_THREADS] = { 0 };  // a logical can have 3 possible values
 
+  // count occurrences
   count_logical(vec, length, index, nr_of_threads);
 
-  int counts[3] = { 0 };
-
-  for (int batch = 0; batch < nr_of_threads; batch++) {
-    counts[LOGICAL_FALSE] += index[3 * batch];
-    counts[LOGICAL_TRUE] += index[3 * batch + 1];
-    counts[LOGICAL_NA] += index[3 * batch + 2];
-  }
-
-  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
-    throw std::runtime_error("non-logical elements detected in vector");
-  }
-
-  fill_logical(vec, length, counts);
+  fill_logical(vec, length, index, nr_of_threads);
 }
 
 /**
@@ -170,21 +171,86 @@ void radix_sort_logical_order(int* vec, const int length, int* order, bool defau
   }
 
   // algorithm to determine optimal threads
-  int counts[3] = { 0 };
+  int index[3 * MAX_SORT_THREADS] = { 0 };  // counter for each of the 3 possible values of a logical
 
-  int index[3 * MAX_SORT_THREADS] = { 0 };  // a logical can have 3 possible values
+  count_logical(vec, length, index, nr_of_threads);
 
-  count_logical(vec, length, counts, nr_of_threads);
+  // phase 2: populate 'order' vector using multiple threads
 
-  for (int batch = 0; batch < nr_of_threads; batch++) {
-    counts[LOGICAL_FALSE] += index[3 * batch];
-    counts[LOGICAL_TRUE] += index[3 * batch + 1];
-    counts[LOGICAL_NA] += index[3 * batch + 2];
+  int total_count = 0;  // total counts for each value
+
+  // NA's are first in order
+  for (int thread = 0; thread < nr_of_threads; thread++)
+  {
+    const int pos = LOGICAL_NA + thread * 3;
+
+    const int tmp_value = index[pos];
+    index[pos] = total_count;
+    total_count += tmp_value;
   }
 
-  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
-    throw std::runtime_error("non-logical elements detected in vector");
+  // FALSE values are second in order
+  for (int thread = 0; thread < nr_of_threads; thread++)
+  {
+    const int pos = LOGICAL_FALSE + thread * 3;
+
+    const int tmp_value = index[pos];
+    index[pos] = total_count;
+    total_count += tmp_value;
   }
 
-  fill_logical(vec, length, counts);
+  // TRUE values are last in order
+  for (int thread = 0; thread < nr_of_threads; thread++)
+  {
+    const int pos = LOGICAL_TRUE + thread * 3;
+
+    const int tmp_value = index[pos];
+    index[pos] = total_count;
+    total_count += tmp_value;
+  }
+
+  if (default_order)  // no element switches required
+  {
+    const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
+    const int half_length = length / 2;
+    const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
+
+#pragma omp parallel num_threads(nr_of_threads)
+    {
+      // count occurrences of 0, 1, and NA
+#pragma omp for
+      for (int batch = 0; batch < nr_of_threads; batch++) {
+
+        // determine range for this thread
+        int pos = ((static_cast<int>(batch * batch_size) + 127) / 128) * 128;
+        int pos_next = ((static_cast<int>((batch + 1) * batch_size) + 127) / 128) * 128;
+        pos_next = std::min(pos_next, half_length);  // last batch is capped
+
+        // cache local copy for better performance
+        int partial_index[4] = { 0 };  // last element should have zero counts
+        partial_index[LOGICAL_NA] = index[batch * 3 + LOGICAL_NA];
+        partial_index[LOGICAL_FALSE] = index[batch * 3 + LOGICAL_FALSE];
+        partial_index[LOGICAL_TRUE] = index[batch * 3 + LOGICAL_TRUE];
+
+        int pos_int = 2 * pos;
+
+        for (; pos < pos_next; pos++) {
+          int value = ((pair_vec[pos] >> 30) | (pair_vec[pos] & 1)) & 3;
+          vec[partial_index[value]++] = pos_int++;
+
+          value = ((pair_vec[pos] >> 62) | ((pair_vec[pos] >> 32) & 1)) & 3;
+          vec[partial_index[value]++] = pos_int++;
+        }
+
+        if (batch == (nr_of_threads - 1) && length % 2 == 1) {  // last element
+          const auto last_element = reinterpret_cast<uint32_t*>(vec)[length - 1];
+          const int value = ((last_element >> 30) | (last_element & 1)) & 3;
+          vec[partial_index[value]] = pos_int;
+        }
+
+      }
+    }
+  }
+
+  fill_logical(vec, length, index, nr_of_threads);
 }
