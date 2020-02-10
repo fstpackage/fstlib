@@ -28,7 +28,7 @@
 
 void radix_sort_logical(int* vec, int length);
 
-void radix_sort_logical_order(int* vec, const int length, int* order, bool default_order = true);
+void radix_sort_logical_order(int* vec, const int length, int* order, int* order_out, const bool default_order);
 
 void radix_sort_int(int* vec, int length, int* buffer);
 

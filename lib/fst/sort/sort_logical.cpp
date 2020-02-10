@@ -151,11 +151,12 @@ void radix_sort_logical(int* vec, int length)
  * the (ordered) range 0 to (length - 1), speeding up the sorting process.
  * \param vec logical vector to be sorted
  * \param length number of logical (4 byte) elements
- * \param order order of elements in 'vec' as compared to , will contain each value in the range 0 to (length - 1)
+ * \param order order of elements in 'vec', will contain each value in the range 0 to (length - 1)
+ * \param order_out resulting reordered vector 'order', with identical permutations as 'cev'
  * \param default_order if true will assume parameter 'order' to contain the range 0 to (length - 1). This reduces
  * computational complexity and will speed up sorting.
  */
-void radix_sort_logical_order(int* vec, const int length, int* order, bool default_order)
+void radix_sort_logical_order(int* vec, const int length, int* order, int* order_out, const bool default_order)
 {
   // phase 1: count number of occurrences
 
@@ -209,7 +210,10 @@ void radix_sort_logical_order(int* vec, const int length, int* order, bool defau
     total_count += tmp_value;
   }
 
-  if (default_order)  // no element switches required
+  // with the 'default_order' parameter set to true, no actual element switches are required in that vector
+  // because we can just use the iterator counter for 'vec' to populate the sorted 'order' vector.
+
+  if (default_order)
   {
     const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
     const int half_length = length / 2;
@@ -228,24 +232,25 @@ void radix_sort_logical_order(int* vec, const int length, int* order, bool defau
 
         // cache local copy for better performance
         int partial_index[4] = { 0 };  // last element should have zero counts
-        partial_index[LOGICAL_NA] = index[batch * 3 + LOGICAL_NA];
+        partial_index[LOGICAL_NA   ] = index[batch * 3 + LOGICAL_NA   ];
         partial_index[LOGICAL_FALSE] = index[batch * 3 + LOGICAL_FALSE];
-        partial_index[LOGICAL_TRUE] = index[batch * 3 + LOGICAL_TRUE];
+        partial_index[LOGICAL_TRUE ] = index[batch * 3 + LOGICAL_TRUE ];
 
         int pos_int = 2 * pos;
 
         for (; pos < pos_next; pos++) {
           int value = ((pair_vec[pos] >> 30) | (pair_vec[pos] & 1)) & 3;
-          vec[partial_index[value]++] = pos_int++;
+          order_out[partial_index[value]++] = pos_int++;
 
           value = ((pair_vec[pos] >> 62) | ((pair_vec[pos] >> 32) & 1)) & 3;
-          vec[partial_index[value]++] = pos_int++;
+          order_out[partial_index[value]++] = pos_int++;
         }
 
-        if (batch == (nr_of_threads - 1) && length % 2 == 1) {  // last element
+        // last element
+        if (batch == (nr_of_threads - 1) && length % 2 == 1) {
           const auto last_element = reinterpret_cast<uint32_t*>(vec)[length - 1];
           const int value = ((last_element >> 30) | (last_element & 1)) & 3;
-          vec[partial_index[value]] = pos_int;
+          order_out[partial_index[value]] = pos_int;
         }
 
       }
