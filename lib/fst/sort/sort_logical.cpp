@@ -210,6 +210,8 @@ void radix_sort_logical_order(int* vec, const int length, int* order, int* order
     total_count += tmp_value;
   }
 
+  // index values are cumulative after this point!
+
   // with the 'default_order' parameter set to true, no actual element switches are required in that vector
   // because we can just use the iterator counter for 'vec' to populate the sorted 'order' vector.
 
@@ -257,5 +259,21 @@ void radix_sort_logical_order(int* vec, const int length, int* order, int* order
     }
   }
 
-  fill_logical(vec, length, index, nr_of_threads);
+  int counts[3] = { 0 };
+
+  counts[LOGICAL_NA] = index[LOGICAL_FALSE];
+  counts[LOGICAL_FALSE] = index[LOGICAL_TRUE] - counts[LOGICAL_NA];
+  counts[LOGICAL_TRUE] = length - counts[LOGICAL_FALSE] - counts[LOGICAL_NA];
+
+  if ((counts[LOGICAL_FALSE] + counts[LOGICAL_TRUE] + counts[LOGICAL_NA]) != length) {
+    throw std::runtime_error("non-logical elements detected in vector");
+  }
+
+  const int byte_na = (1 << 31);  // NA value
+  
+  for (int pos = 0; pos < counts[LOGICAL_NA]; pos++) vec[pos] = byte_na;
+  
+  memset(&(vec[counts[LOGICAL_NA]]), 0, sizeof(int) * counts[LOGICAL_FALSE]);  // all zero's
+  
+  for (int pos = counts[LOGICAL_FALSE] + counts[LOGICAL_NA]; pos < length; pos++) vec[pos] = 1;
 }
