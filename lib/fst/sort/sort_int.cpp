@@ -24,8 +24,14 @@
 
 #include <cstdint>  // int64_t
 #include <cstring>  // memcpy
+#include <algorithm>
 
 #include <sort/sort.h>
+#include <interface/openmphelper.h>
+#include <memory>
+
+
+#define MAX_INT_SORT_THREADS 8
 
 
 void quick_sort_int(int* vec, int length, int pivot) {
@@ -164,155 +170,94 @@ inline void radix_fill4(int* vec, int* buffer, int length, int index4[256])
 
 void radix_sort_int(int* vec, int length, int* buffer)
 {
-  int index1[256];
-  int index2[256];
-  int index3[256];
-  int index4[256];
+  int nr_of_threads = 1;  // single threaded for small sizes
 
-  // phase 1: sort on lower byte
+// determine optimal threads
 
-  // initialize
+  if (length > 1048576) {
+    nr_of_threads = std::min(GetFstThreads(), MAX_INT_SORT_THREADS);
+  }
+
+  // index for all threads
+  auto index_p = (std::unique_ptr<int[]>)(new int[4 * 256 * MAX_INT_SORT_THREADS]);
+  int* index = index_p.get();
+
+  // phase 1: count occurence of each byte
+
+  const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
+  const int half_length = length / 2;
+  const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
+
+#pragma omp parallel num_threads(nr_of_threads)
+  {
+#pragma omp for
+    for (int thread = 0; thread < nr_of_threads; thread++) {
+
+      // range
+      const int pos_start = 128 * ((static_cast<int>(thread * batch_size) + 127) / 128);
+      const int pos_end = std::max(128 * ((static_cast<int>((thread + 1) * batch_size) + 127) / 128), half_length);
+
+      // local cache index
+      int thread_index0[256] = { 0 };  // 1 kB
+      int thread_index1[256] = { 0 };  // 1 kB
+      int thread_index2[256] = { 0 };  // 1 kB
+      int thread_index3[256] = { 0 };  // 1 kB
+
+      // TODO: some more loop unwinding
+
+      // iterate uint64_t values
+      for (int pos = pos_start; pos < pos_end; pos++) {
+        const uint64_t val = pair_vec[pos];
+
+        thread_index0[  val        & 255       ]++;  // byte 0
+        thread_index1[( val >> 8 ) & 255       ]++;  // byte 1
+        thread_index2[( val >> 16) & 255       ]++;  // byte 2
+        thread_index3[((val >> 24) & 255) ^ 128]++;  // byte 3 with flipped 7th bit
+        thread_index0[( val >> 32) & 255       ]++;  // byte 4
+        thread_index1[( val >> 40) & 255       ]++;  // byte 5
+        thread_index2[( val >> 48) & 255       ]++;  // byte 6
+        thread_index3[((val >> 56) & 255) ^ 128]++;  // byte 7 with flipped 7th bit
+      }
+
+      // to main memory
+      const int offset = 4 * 256 * thread;
+      for (int pos = 0; pos < 256; pos++)
+      {
+        index[offset + pos      ] = thread_index0[pos];
+        index[offset + pos + 256] = thread_index1[pos];
+        index[offset + pos + 512] = thread_index2[pos];
+        index[offset + pos + 768] = thread_index3[pos];
+      }
+    }
+  }
+
+  // last element is added to last thread counts
+  if (length % 2 == 1) {
+    auto val = static_cast<uint32_t>(vec[length - 1]);
+    const int offset = 4 * 256 * (nr_of_threads - 1);
+
+    index[offset +         (val        & 255)       ]++;  // byte 0
+    index[offset + 256 +  ((val >> 8 ) & 255)       ]++;  // byte 1
+    index[offset + 512 +  ((val >> 16) & 255)       ]++;  // byte 2
+    index[offset + 768 + (((val >> 24) & 255) ^ 128)]++;  // byte 3 with flipped 7th bit
+  }
+
+
+  // phase 2: determine cumulative positions per thread
+
+  int tot_count = 0;
   for (int ind = 0; ind < 256; ++ind) {
-    index1[ind] = 0;
-    index2[ind] = 0;
-    index3[ind] = 0;
-    index4[ind] = 0;
+    int pos = ind;
+    for (int thread = 0; thread < nr_of_threads; thread++)
+    {
+      const int tmp = index[pos];
+      index[pos] = tot_count;
+      tot_count += tmp;
+      pos += 1024;
+    }
   }
 
-  // count each occurence
-  const int batch_length = length / 8;
+  // phase 3: fill buffer
 
-  for (int pos = 0; pos < batch_length; ++pos) {
-    const int ind = 8 * pos;
-
-    int val = vec[ind];
-    ++index1[val & 255];
-    ++index2[(val >> 8) & 255];
-    ++index3[(val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-
-    val = vec[ind + 1];
-    ++index1[  val        & 255];
-    ++index2[( val >> 8 )& 255];
-    ++index3[( val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-
-    val = vec[ind + 2];
-    ++index1[  val        & 255];
-    ++index2[( val >> 8 )& 255];
-    ++index3[( val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-
-    val = vec[ind + 3];
-    ++index1[  val        & 255];
-    ++index2[( val >> 8 )& 255];
-    ++index3[( val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-
-    val = vec[ind + 4];
-    ++index1[  val        & 255];
-    ++index2[( val >> 8 )& 255];
-    ++index3[( val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-
-    val = vec[ind + 5];
-    ++index1[  val        & 255];
-    ++index2[( val >> 8 )& 255];
-    ++index3[( val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-
-    val = vec[ind + 6];
-    ++index1[  val        & 255];
-    ++index2[( val >> 8 )& 255];
-    ++index3[( val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-
-    val = vec[ind + 7];
-    ++index1[  val        & 255];
-    ++index2[( val >> 8 )& 255];
-    ++index3[( val >> 16) & 255];
-    ++index4[((val >> 24) & 255) ^ 128];
-  }
-
-  for (int pos = 8 * batch_length; pos < length; ++pos) {
-    ++index1[  vec[pos]        & 255];
-    ++index2[( vec[pos] >> 8)  & 255];
-    ++index3[( vec[pos] >> 16) & 255];
-    ++index4[((vec[pos] >> 24) & 255) ^ 128];
-  }
-
-
-  // cumulative positions
-  int cum_pos1 = index1[0];
-  int cum_pos2 = index2[0];
-  int cum_pos3 = index3[0];
-  int cum_pos4 = index4[0];
-
-  index1[0] = 0;
-  index2[0] = 0;
-  index3[0] = 0;
-  index4[0] = 0;
-
-  // test for single populated bin
-  int64_t sqr1 = static_cast<int64_t>(cum_pos1) * static_cast<int64_t>(cum_pos1);
-  int64_t sqr2 = static_cast<int64_t>(cum_pos2) * static_cast<int64_t>(cum_pos2);
-  int64_t sqr3 = static_cast<int64_t>(cum_pos3) * static_cast<int64_t>(cum_pos3);
-  int64_t sqr4 = static_cast<int64_t>(cum_pos4) * static_cast<int64_t>(cum_pos4);
-
-  for (int ind = 1; ind < 256; ++ind) {
-
-    int64_t old_val = index1[ind];
-    sqr1 += old_val * old_val;
-    index1[ind] = cum_pos1;
-    cum_pos1 += old_val;
-
-    old_val = index2[ind];
-    sqr2 += old_val * old_val;
-    index2[ind] = cum_pos2;
-    cum_pos2 += old_val;
-
-    old_val = index3[ind];
-    sqr3 += old_val * old_val;
-    index3[ind] = cum_pos3;
-    cum_pos3 += old_val;
-
-    old_val = index4[ind];
-    sqr4 += old_val * old_val;
-    index4[ind] = cum_pos4;
-    cum_pos4 += old_val;
-  }
-
-  // phase 1: sort on byte 1
-
-  const int64_t single_bin_size = static_cast<int64_t>(length) * static_cast<int64_t>(length);
-
-  if (sqr1 != single_bin_size) {
-    radix_fill1(buffer, vec, length, index1);
-  } else {  // a single populated bin
-    memcpy(buffer, vec, length * sizeof(int));
-  }
-
-  // phase 2: sort on byte 2
-
-  if (sqr2 != single_bin_size) {
-    radix_fill2(vec, buffer, length, index2);
-  } else {  // a single populated bin
-    memcpy(vec, buffer, length * sizeof(int));
-  }
-
-  // phase 3: sort on byte 3
-
-  if (sqr3 != single_bin_size) {
-    radix_fill3(buffer, vec, length, index3);
-  } else {  // a single populated bin
-    memcpy(buffer, vec, length * sizeof(int));
-  }
-
-  // phase 4: sort on byte 3
-
-  if (sqr4 != single_bin_size) {
-    radix_fill4(vec, buffer, length, index4);
-  } else {  // a single populated bin
-    memcpy(vec, buffer, length * sizeof(int));
-  }
+  // TODO: fill buffer code here
 }

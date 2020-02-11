@@ -270,10 +270,12 @@ void radix_sort_logical_order(int* vec, const int length, int* order, int* order
   }
 
   const int byte_na = (1 << 31);  // NA value
-  
+
+  // TODO: use multiple cores and uint64_t loops
   for (int pos = 0; pos < counts[LOGICAL_NA]; pos++) vec[pos] = byte_na;
   
   memset(&(vec[counts[LOGICAL_NA]]), 0, sizeof(int) * counts[LOGICAL_FALSE]);  // all zero's
   
+  // TODO: use multiple cores and uint64_t loops
   for (int pos = counts[LOGICAL_FALSE] + counts[LOGICAL_NA]; pos < length; pos++) vec[pos] = 1;
 }
