@@ -32,6 +32,7 @@
 
 
 #define MAX_INT_SORT_THREADS 8
+#define THREAD_INDEX_SIZE 2048
 
 
 void quick_sort_int(int* vec, int length, int pivot) {
@@ -168,25 +169,26 @@ inline void radix_fill4(int* vec, int* buffer, int length, int index4[256])
 }
 
 
-void radix_sort_int(int* vec, int length, int* buffer)
+void radix_sort_int(int* vec, const int length, int* buffer)
 {
   int nr_of_threads = 1;  // single threaded for small sizes
 
 // determine optimal threads
+// TODO: test to determine a more optimal thread selection
 
   if (length > 1048576) {
     nr_of_threads = std::min(GetFstThreads(), MAX_INT_SORT_THREADS);
   }
 
-  // index for all threads
-  auto index_p = (std::unique_ptr<int[]>)(new int[4 * 256 * MAX_INT_SORT_THREADS]);
+  // index for all threads (on heap)
+  auto index_p = (std::unique_ptr<int[]>)(new int[THREAD_INDEX_SIZE * MAX_INT_SORT_THREADS]);
   int* index = index_p.get();
-
-  // phase 1: count occurence of each byte
 
   const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
   const int half_length = length / 2;
   const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
+
+  // phase 1: byte0 occurence count
 
 #pragma omp parallel num_threads(nr_of_threads)
   {
@@ -194,70 +196,118 @@ void radix_sort_int(int* vec, int length, int* buffer)
     for (int thread = 0; thread < nr_of_threads; thread++) {
 
       // range
-      const int pos_start = 128 * ((static_cast<int>(thread * batch_size) + 127) / 128);
-      const int pos_end = std::max(128 * ((static_cast<int>((thread + 1) * batch_size) + 127) / 128), half_length);
+      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
+      const int pos_end = std::max(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
 
       // local cache index
-      int thread_index0[256] = { 0 };  // 1 kB
-      int thread_index1[256] = { 0 };  // 1 kB
-      int thread_index2[256] = { 0 };  // 1 kB
-      int thread_index3[256] = { 0 };  // 1 kB
-
-      // TODO: some more loop unwinding
+      int thread_index[THREAD_INDEX_SIZE] = { 0 };  // 1 kB
 
       // iterate uint64_t values
       for (int pos = pos_start; pos < pos_end; pos++) {
         const uint64_t val = pair_vec[pos];
 
-        thread_index0[  val        & 255       ]++;  // byte 0
-        thread_index1[( val >> 8 ) & 255       ]++;  // byte 1
-        thread_index2[( val >> 16) & 255       ]++;  // byte 2
-        thread_index3[((val >> 24) & 255) ^ 128]++;  // byte 3 with flipped 7th bit
-        thread_index0[( val >> 32) & 255       ]++;  // byte 4
-        thread_index1[( val >> 40) & 255       ]++;  // byte 5
-        thread_index2[( val >> 48) & 255       ]++;  // byte 6
-        thread_index3[((val >> 56) & 255) ^ 128]++;  // byte 7 with flipped 7th bit
+        thread_index[val & 2047]++;  // byte 0
+        //thread_index3[((val >> 24) & 255) ^ 128]++;  // byte 3 with flipped 7th bit
+        thread_index[(val >> 32) & 2047]++;  // byte 4
+        //thread_index3[((val >> 56) & 255) ^ 128]++;  // byte 7 with flipped 7th bit
       }
 
       // to main memory
-      const int offset = 4 * 256 * thread;
-      for (int pos = 0; pos < 256; pos++)
+      const int offset = THREAD_INDEX_SIZE * thread;
+      for (int pos = 0; pos < THREAD_INDEX_SIZE; pos++)
       {
-        index[offset + pos      ] = thread_index0[pos];
-        index[offset + pos + 256] = thread_index1[pos];
-        index[offset + pos + 512] = thread_index2[pos];
-        index[offset + pos + 768] = thread_index3[pos];
+        index[offset + pos] = thread_index[pos];
       }
     }
   }
 
   // last element is added to last thread counts
   if (length % 2 == 1) {
-    auto val = static_cast<uint32_t>(vec[length - 1]);
-    const int offset = 4 * 256 * (nr_of_threads - 1);
+    const auto val = static_cast<uint32_t>(vec[length - 1]);
+    const int offset = THREAD_INDEX_SIZE * (nr_of_threads - 1);
 
-    index[offset +         (val        & 255)       ]++;  // byte 0
-    index[offset + 256 +  ((val >> 8 ) & 255)       ]++;  // byte 1
-    index[offset + 512 +  ((val >> 16) & 255)       ]++;  // byte 2
-    index[offset + 768 + (((val >> 24) & 255) ^ 128)]++;  // byte 3 with flipped 7th bit
+    index[offset + (val & 2047)]++;  // byte 0
+    //index[offset + 768 + (((val >> 24) & 255) ^ 128)]++;  // byte 3 with flipped 7th bit
   }
-
 
   // phase 2: determine cumulative positions per thread
 
-  int tot_count = 0;
-  for (int ind = 0; ind < 256; ++ind) {
+  // each byte is counted separately
+  for (int ind = 0; ind < THREAD_INDEX_SIZE; ++ind) {
+
+    // set counters
+    int tot_count = 0;
     int pos = ind;
+
     for (int thread = 0; thread < nr_of_threads; thread++)
     {
       const int tmp = index[pos];
       index[pos] = tot_count;
       tot_count += tmp;
-      pos += 1024;
+      pos += THREAD_INDEX_SIZE;
     }
   }
 
   // phase 3: fill buffer
+  // the batch size for each thread are exactly equal to the sizes in the counting phase
 
-  // TODO: fill buffer code here
+  // sort on byte0 and fill buffer
+
+  auto buffer_p = reinterpret_cast<uint32_t*>(buffer);
+  const int phase = 0;
+
+#pragma omp parallel num_threads(nr_of_threads)
+  {
+#pragma omp for
+    for (int thread = 0; thread < nr_of_threads; thread++) {
+
+      // range
+      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
+      const int pos_end = std::max(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
+
+      // local cache index
+      int thread_index[THREAD_INDEX_SIZE];  // 1 kB
+
+      // copy relevant index main memory
+      int index_start = THREAD_INDEX_SIZE * thread;
+      for (int pos = 0; pos < THREAD_INDEX_SIZE; pos++) {
+        thread_index[pos] = index[index_start++];
+      }
+
+      // TODO: some more loop unwinding
+
+      // iterate uint64_t values
+      for (int pos = pos_start; pos < pos_end; pos++) {
+
+        // determine value of source vec
+        const uint64_t val = pair_vec[pos];
+
+        // set value in target buffer
+        // TODO: combine in single statement
+        const int pos_low  = thread_index[ val        & 2047]++;  // byte 0
+        const int pos_high = thread_index[(val >> 32) & 2047]++;  // byte 4
+
+        buffer_p[pos_low ] = static_cast<uint32_t>( val        & 65535);
+        buffer_p[pos_high] = static_cast<uint32_t>((val >> 32) & 65535);
+
+        // order vector must be mutated here
+      }
+
+      // check last element in last thread
+      if (thread == (nr_of_threads - 1)) {
+        if (length % 2 == 1) {
+          // determine value of source vec
+          const int val = vec[length - 1];  // no casting required (?)
+
+          // set value in target buffer
+          // TODO: combine in single statement
+          const int pos_low = thread_index[val & 2047];  // no need to increment
+          buffer[pos_low] = val;
+        }
+      }
+    }
+  }
+
+  // sort on byte1 and fill vec
+
 }
