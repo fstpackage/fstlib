@@ -533,7 +533,7 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
 
           // set value in target buffer
           // TODO: combine in single statement
-          const int pos_low = thread_index[(val >> 22) & 1023];  // no need to increment
+          const int pos_low = thread_index[((val >> 22) & 1023) ^ 512];  // no need to increment
           buffer[pos_low] = val;
         }
       }
