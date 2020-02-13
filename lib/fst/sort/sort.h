@@ -25,12 +25,14 @@
 #ifndef FST_SORT_H
 #define FST_SORT_H
 
+#define MAX_INT_SORT_THREADS 8
+#define THREAD_INDEX_SIZE 2048
 
 void radix_sort_logical(int* vec, int length);
 
 void radix_sort_logical_order(int* vec, const int length, int* order, int* order_out, const bool default_order);
 
-void radix_sort_int(int* vec, const int length, int* buffer);
+void radix_sort_int(int* vec, const int length, int* buffer, uint64_t(&timings)[100], int(&counts)[THREAD_INDEX_SIZE]);
 
 void merge_sort_int(const int* left_p, const int* right_p, int length_left, int length_right, int* res_p);
 
