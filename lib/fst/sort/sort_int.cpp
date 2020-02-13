@@ -206,15 +206,18 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 {
   int nr_of_threads = 1;  // single threaded for small sizes
 
-// determine optimal threads
-// TODO: test to determine a more optimal thread selection
+// set optimal number of threads (determined from empirical measurements)
 
-  if (length > 1048576) {
+  if (length > 600000) {
     nr_of_threads = std::min(GetFstThreads(), MAX_INT_SORT_THREADS);
+  }
+  else if (length > 90000)
+  {
+    nr_of_threads = 2;
   }
 
   // index for all threads (on heap)
-  auto index_p = (std::unique_ptr<int[]>)(new int[THREAD_INDEX_SIZE * MAX_INT_SORT_THREADS]);
+  auto index_p = static_cast<std::unique_ptr<int[]>>(new int[THREAD_INDEX_SIZE * MAX_INT_SORT_THREADS]);
   int* index = index_p.get();
 
   const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
@@ -242,7 +245,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         thread_index[val & 2047]++;  // byte 0
         thread_index[(val >> 32) & 2047]++;  // byte 4
       }
-
+      
       // to main memory
       memcpy(&index[THREAD_INDEX_SIZE * thread], &thread_index, 4 * THREAD_INDEX_SIZE);
     }
@@ -301,8 +304,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         const int pos_low  = thread_index[ val        & 2047]++;  // byte 0
         const int pos_high = thread_index[(val >> 32) & 2047]++;  // byte 4
 
-        buffer_p[pos_low ] = static_cast<uint32_t>( val        & 65535);
-        buffer_p[pos_high] = static_cast<uint32_t>((val >> 32) & 65535);
+        buffer_p[pos_low ] = val & 4294967295;
+        buffer_p[pos_high] = (val >> 32) & 4294967295;
 
         // order vector must be mutated here
       }
@@ -402,8 +405,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         const int pos_low  = thread_index[(val >> 11) & 2047]++;  // byte 0
         const int pos_high = thread_index[(val >> 43) & 2047]++;  // byte 4
 
-        uvec[pos_low] = static_cast<uint32_t>(val & 65535);
-        uvec[pos_high] = static_cast<uint32_t>((val >> 32) & 65535);
+        uvec[pos_low] = val & 4294967295;
+        uvec[pos_high] = (val >> 32) & 4294967295;
 
         // order vector must be mutated here
       }
@@ -499,8 +502,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         const int pos_low  = thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
         const int pos_high = thread_index[((val >> 54) & 1023) ^ 512]++;  // byte 4
 
-        buffer_p[pos_low]  = static_cast<uint32_t>(val & 65535);
-        buffer_p[pos_high] = static_cast<uint32_t>((val >> 32) & 65535);
+        buffer_p[pos_low]  = val & 4294967295;
+        buffer_p[pos_high] = (val >> 32) & 4294967295;
 
         // order vector must be mutated here
       }
