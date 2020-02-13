@@ -202,10 +202,8 @@ inline void cumulative_index(int* index, int nr_of_threads)
 }
 
 
-void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)[100], int (&counts)[THREAD_INDEX_SIZE])
+void radix_sort_int(int* vec, const int length, int* buffer)
 {
-  timings[0] = cpu_cycles();  // function start
-
   int nr_of_threads = 1;  // single threaded for small sizes
 
 // determine optimal threads
@@ -250,8 +248,6 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
     }
   }
  
-  timings[1] = cpu_cycles();  // function start
-
   // phase 1: byte0 occurence count
 
   // last element is added to last thread counts
@@ -263,13 +259,9 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
     //index[offset + 768 + (((val >> 24) & 255) ^ 128)]++;  // byte 3 with flipped 7th bit
   }
 
-  timings[2] = cpu_cycles();  // last element
-
   // phase 2: determine cumulative positions per thread
 
   cumulative_index(index, nr_of_threads);
-
-  timings[3] = cpu_cycles();  // last element
 
   // phase 3: fill buffer
   // the batch size for each thread are exactly equal to the sizes in the counting phase
@@ -330,8 +322,6 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
     }
   }
 
-  timings[4] = cpu_cycles();  // last element
-
   // phase 1: bit 11 - 21 occurence count
 
   const auto buffer_pair_vec = reinterpret_cast<uint64_t*>(buffer);
@@ -373,13 +363,9 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
     index[offset + ((val >> 11) & 2047)]++;  // byte 0
   }
 
-  timings[5] = cpu_cycles();  // last element
-
   // phase 2: determine cumulative positions per thread
 
   cumulative_index(index, nr_of_threads);
-
-  timings[6] = cpu_cycles();  // last element
 
   auto uvec = reinterpret_cast<uint32_t*>(vec);
 
@@ -437,8 +423,6 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
     }
   }
 
-  timings[7] = cpu_cycles();  // last element
-
   // bit 22 - 31
 
 #pragma omp parallel num_threads(nr_of_threads)
@@ -478,13 +462,9 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
     index[offset + (((val >> 22) & 1023) ^ 512)]++;  // byte 0
   }
 
-  timings[8] = cpu_cycles();  // last element
-
   // phase 2: determine cumulative positions per thread
 
   cumulative_index(index, nr_of_threads);
-
-  timings[9] = cpu_cycles();  // last element
 
   // phase 2 bits 22-31: fill result vector
 
@@ -539,10 +519,4 @@ void radix_sort_int(int* vec, const int length, int* buffer, uint64_t (&timings)
       }
     }
   }
-
-  for (int pos = 0; pos < THREAD_INDEX_SIZE; pos++) {
-    counts[pos] = index[pos];
-  }
-
-  timings[10] = cpu_cycles();  // last element
 }
