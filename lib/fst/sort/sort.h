@@ -25,8 +25,10 @@
 #ifndef FST_SORT_H
 #define FST_SORT_H
 
-#define MAX_INT_SORT_THREADS 8
-#define THREAD_INDEX_SIZE 2048
+#define MAX_INT_SORT_THREADS   8
+#define MAX_INT64_SORT_THREADS 8
+#define THREAD_INDEX_INT_SIZE      2048
+#define THREAD_INDEX_INT64_SIZE      2048
 
 void radix_sort_logical(int* vec, int length);
 
