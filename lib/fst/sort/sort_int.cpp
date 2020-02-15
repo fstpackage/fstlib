@@ -205,7 +205,7 @@ inline void cumulative_index(int* index, int nr_of_threads)
 void radix_sort_int(int* vec, const int length, int* buffer)
 {
   int nr_of_threads = 1;  // single threaded for small sizes
-
+ 
 // set optimal number of threads (determined from empirical measurements)
 
   if (length > 600000) {
@@ -234,7 +234,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
 
       // local cache index
-      int thread_index[THREAD_INDEX_SIZE] = { 0 };  // 1 kB
+      int thread_index[THREAD_INDEX_SIZE] = { 0 };  // 8 kB
 
       // iterate uint64_t values
       for (int pos = pos_start; pos < pos_end; pos++) {
@@ -250,7 +250,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       memcpy(&index[THREAD_INDEX_SIZE * thread], &thread_index, 4 * THREAD_INDEX_SIZE);
     }
   }
- 
+
   // phase 1: byte0 occurence count
 
   // last element is added to last thread counts
@@ -263,7 +263,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
   }
 
   // phase 2: determine cumulative positions per thread
-
   cumulative_index(index, nr_of_threads);
 
   // phase 3: fill buffer
@@ -291,8 +290,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         thread_index[pos] = index[index_start++];
       }
 
-      // TODO: some more loop unwinding
-
       // iterate uint64_t values
       for (int pos = pos_start; pos < pos_end; pos++) {
 
@@ -317,7 +314,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
           const int val = vec[length - 1];  // no casting required (?)
 
           // set value in target buffer
-          // TODO: combine in single statement
           const int pos_low = thread_index[val & 2047];  // no need to increment
           buffer[pos_low] = val;
         }
