@@ -202,6 +202,45 @@ inline void cumulative_index(int* index, int nr_of_threads)
 }
 
 
+inline void count_occurrences(const int nr_of_threads, int* index, uint64_t* const pair_vec, const int half_length,
+  const double batch_size, const int length, const int* vec)
+{
+#pragma omp parallel num_threads(nr_of_threads)
+  {
+#pragma omp for
+    for (int thread = 0; thread < nr_of_threads; thread++) {
+
+      // range
+      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
+      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
+
+      // local cache index
+      int thread_index[THREAD_INDEX_INT_SIZE] = { 0 };  // 8 kB
+
+      // iterate uint64_t values
+      for (int pos = pos_start; pos < pos_end; pos++) {
+
+        // get source value
+        const uint64_t val = pair_vec[pos];
+
+        thread_index[val & 2047]++;  // byte 0
+        thread_index[(val >> 32) & 2047]++;  // byte 4
+      }
+        
+      // to main memory
+      memcpy(&index[THREAD_INDEX_INT_SIZE * thread], &thread_index, 4 * THREAD_INDEX_INT_SIZE);
+    }
+  }
+
+  // last element is added to last thread counts
+  if (length % 2 == 1) {
+    const auto val = vec[length - 1];
+    const int offset = THREAD_INDEX_INT_SIZE * (nr_of_threads - 1);
+
+    index[offset + (val & 2047)]++;  // byte 0
+  }
+}
+
 void radix_sort_int(int* vec, const int length, int* buffer)
 {
   int nr_of_threads = 1;  // single threaded for small sizes
@@ -224,42 +263,9 @@ void radix_sort_int(int* vec, const int length, int* buffer)
   const int half_length = length / 2;
   const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
 
-#pragma omp parallel num_threads(nr_of_threads)
-  {
-#pragma omp for
-    for (int thread = 0; thread < nr_of_threads; thread++) {
 
-      // range
-      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
-      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
-
-      // local cache index
-      int thread_index[THREAD_INDEX_INT_SIZE] = { 0 };  // 8 kB
-
-      // iterate uint64_t values
-      for (int pos = pos_start; pos < pos_end; pos++) {
-
-        // get source value
-        const uint64_t val = pair_vec[pos];
-
-        thread_index[val & 2047]++;  // byte 0
-        thread_index[(val >> 32) & 2047]++;  // byte 4
-      }
-      
-      // to main memory
-      memcpy(&index[THREAD_INDEX_INT_SIZE * thread], &thread_index, 4 * THREAD_INDEX_INT_SIZE);
-    }
-  }
-
-  // phase 1: byte0 occurence count
-
-  // last element is added to last thread counts
-  if (length % 2 == 1) {
-    const auto val = vec[length - 1];
-    const int offset = THREAD_INDEX_INT_SIZE * (nr_of_threads - 1);
-
-    index[offset + (val & 2047)]++;  // byte 0
-  }
+  // phase 1: bit 0 - 10 occurence count
+  count_occurrences(nr_of_threads, index, pair_vec, half_length, batch_size, length, vec);
 
   // phase 2: determine cumulative positions per thread
   cumulative_index(index, nr_of_threads);
