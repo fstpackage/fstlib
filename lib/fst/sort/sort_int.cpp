@@ -142,7 +142,7 @@ void merge_sort_int(const int* left_p, const int* right_p, int length_left, int 
 }
 
 
-inline void radix_fill1(int* buffer, int* vec, int length, int index1[256])
+inline void radix_fill1(int* buffer, const int* vec, int length, int index1[256])
 {
   for (int pos = 0; pos < length; ++pos) {
     const int value = vec[pos];
@@ -152,7 +152,7 @@ inline void radix_fill1(int* buffer, int* vec, int length, int index1[256])
 }
 
 
-inline void radix_fill2(int* vec, int* buffer, int length, int index2[256])
+inline void radix_fill2(int* vec, const int* buffer, int length, int index2[256])
 {
   for (int pos = 0; pos < length; ++pos) {
     const int value = buffer[pos];
@@ -162,7 +162,7 @@ inline void radix_fill2(int* vec, int* buffer, int length, int index2[256])
 }
 
 
-inline void radix_fill3(int* buffer, int* vec, int length, int index3[256])
+inline void radix_fill3(int* buffer, const int* vec, int length, int index3[256])
 {
   for (int pos = 0; pos < length; ++pos) {
     const int value = vec[pos];
@@ -172,7 +172,7 @@ inline void radix_fill3(int* buffer, int* vec, int length, int index3[256])
 }
 
 
-inline void radix_fill4(int* vec, int* buffer, int length, int index4[256])
+inline void radix_fill4(int* vec, const int* buffer, int length, int index4[256])
 {
   for (int pos = 0; pos < length; ++pos) {
     const int value = buffer[pos];
@@ -202,7 +202,7 @@ inline void cumulative_index(int* index, int nr_of_threads)
 }
 
 
-inline void count_occurrences1(const int nr_of_threads, int* index, uint64_t* const pair_vec, const int half_length,
+inline void count_occurrences1(const int nr_of_threads, int* index, const uint64_t* const pair_vec, const int half_length,
   const double batch_size, const int length, const int* vec)
 {
 #pragma omp parallel num_threads(nr_of_threads)
@@ -256,7 +256,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
   }
 
   // index for all threads (on heap)
-  auto index_p = static_cast<std::unique_ptr<int[]>>(new int[THREAD_INDEX_INT_SIZE * MAX_INT_SORT_THREADS]);
+  const auto index_p = static_cast<std::unique_ptr<int[]>>(new int[THREAD_INDEX_INT_SIZE * MAX_INT_SORT_THREADS]);
   int* index = index_p.get();
 
   const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
@@ -282,7 +282,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 
   // sort on byte0 and fill buffer
 
-  auto buffer_p = reinterpret_cast<uint32_t*>(buffer);
+  const auto buffer_p = reinterpret_cast<uint32_t*>(buffer);
 
 #pragma omp parallel num_threads(nr_of_threads)
   {
@@ -297,7 +297,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       int thread_index[THREAD_INDEX_INT_SIZE];  // 1 kB
 
       // copy relevant index main memory
-      int index_start = THREAD_INDEX_INT_SIZE * thread;
+      const int index_start = THREAD_INDEX_INT_SIZE * thread;
       memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
 
       // iterate uint64_t values
@@ -307,7 +307,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         const uint64_t val = pair_vec[pos];
 
         // set value in target buffer
-        // TODO: combine in single statement
         const int pos_low  = thread_index[ val        & 2047]++;  // byte 0
         const int pos_high = thread_index[(val >> 32) & 2047]++;  // byte 4
 
@@ -376,7 +375,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 
   cumulative_index(index, nr_of_threads);
 
-  auto uvec = reinterpret_cast<uint32_t*>(vec);
+  const auto uvec = reinterpret_cast<uint32_t*>(vec);
 
   // phase 2 bits 11-21: fill result vector
 
@@ -393,10 +392,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       int thread_index[THREAD_INDEX_INT_SIZE];  // 1 kB
 
       // copy relevant index main memory
-      int index_start = THREAD_INDEX_INT_SIZE * thread;
+      const int index_start = THREAD_INDEX_INT_SIZE * thread;
       memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
-
-      // TODO: some more loop unwinding
 
       // iterate uint64_t values
       for (int pos = pos_start; pos < pos_end; pos++) {
@@ -405,7 +402,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         const uint64_t val = buffer_pair_vec[pos];
 
         // set value in target buffer
-        // TODO: combine in single statement
         const int pos_low  = thread_index[(val >> 11) & 2047]++;  // byte 0
         const int pos_high = thread_index[(val >> 43) & 2047]++;  // byte 4
 
@@ -422,7 +418,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
           const int val = buffer[length - 1];  // no casting required (?)
 
           // set value in target buffer
-          // TODO: combine in single statement
           const int pos_low = thread_index[(val >> 11) & 2047];  // no need to increment
           uvec[pos_low] = val;
         }
@@ -484,10 +479,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       int thread_index[THREAD_INDEX_INT_SIZE];  // 1 kB
 
       // copy relevant index main memory
-      int index_start = THREAD_INDEX_INT_SIZE * thread;
+      const int index_start = THREAD_INDEX_INT_SIZE * thread;
       memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
-
-      // TODO: some more loop unwinding
 
       // iterate uint64_t values
       for (int pos = pos_start; pos < pos_end; pos++) {
@@ -496,7 +489,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
         const uint64_t val = pair_vec[pos];
 
         // set value in target buffer
-        // TODO: combine in single statement
         const int pos_low  = thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
         const int pos_high = thread_index[((val >> 54) & 1023) ^ 512]++;  // byte 4
 
@@ -513,7 +505,6 @@ void radix_sort_int(int* vec, const int length, int* buffer)
           const int val = vec[length - 1];  // no casting required (?)
 
           // set value in target buffer
-          // TODO: combine in single statement
           const int pos_low = thread_index[((val >> 22) & 1023) ^ 512];  // no need to increment
           buffer[pos_low] = val;
         }
