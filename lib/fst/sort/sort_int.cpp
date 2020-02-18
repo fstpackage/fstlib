@@ -202,7 +202,7 @@ inline void cumulative_index(int* index, int nr_of_threads)
 }
 
 
-inline void count_occurrences(const int nr_of_threads, int* index, uint64_t* const pair_vec, const int half_length,
+inline void count_occurrences1(const int nr_of_threads, int* index, uint64_t* const pair_vec, const int half_length,
   const double batch_size, const int length, const int* vec)
 {
 #pragma omp parallel num_threads(nr_of_threads)
@@ -263,12 +263,19 @@ void radix_sort_int(int* vec, const int length, int* buffer)
   const int half_length = length / 2;
   const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
 
+  uint64_t t0 = cpu_cycles();
 
   // phase 1: bit 0 - 10 occurence count
-  count_occurrences(nr_of_threads, index, pair_vec, half_length, batch_size, length, vec);
+  count_occurrences1(nr_of_threads, index, pair_vec, half_length, batch_size, length, vec);
+
+  uint64_t t1 = cpu_cycles();
+  std::cout << "count: " << (t1 - t0) / 10000 << "\n" << std::flush;
 
   // phase 2: determine cumulative positions per thread
   cumulative_index(index, nr_of_threads);
+
+  t0 = cpu_cycles();
+  std::cout << "count: " << (t0 - t1) / 10000 << "\n" << std::flush;
 
   // phase 3: fill buffer
   // the batch size for each thread is exactly equal to that in the counting phase
@@ -291,9 +298,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 
       // copy relevant index main memory
       int index_start = THREAD_INDEX_INT_SIZE * thread;
-      for (int pos = 0; pos < THREAD_INDEX_INT_SIZE; pos++) {
-        thread_index[pos] = index[index_start++];
-      }
+      memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
 
       // iterate uint64_t values
       for (int pos = pos_start; pos < pos_end; pos++) {
@@ -325,6 +330,9 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       }
     }
   }
+
+  t1 = cpu_cycles();
+  std::cout << "count: " << (t1 - t0) / 10000 << "\n" << std::flush;
 
   // phase 1: bit 11 - 21 occurence count
 
@@ -386,9 +394,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 
       // copy relevant index main memory
       int index_start = THREAD_INDEX_INT_SIZE * thread;
-      for (int pos = 0; pos < THREAD_INDEX_INT_SIZE; pos++) {
-        thread_index[pos] = index[index_start++];
-      }
+      memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
 
       // TODO: some more loop unwinding
 
@@ -424,7 +430,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
     }
   }
 
-  // bit 22 - 31
+  // count bit 22 - 31
 
 #pragma omp parallel num_threads(nr_of_threads)
   {
@@ -479,9 +485,7 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 
       // copy relevant index main memory
       int index_start = THREAD_INDEX_INT_SIZE * thread;
-      for (int pos = 0; pos < THREAD_INDEX_INT_SIZE; pos++) {
-        thread_index[pos] = index[index_start++];
-      }
+      memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
 
       // TODO: some more loop unwinding
 
