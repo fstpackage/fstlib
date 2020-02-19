@@ -142,46 +142,6 @@ void merge_sort_int(const int* left_p, const int* right_p, int length_left, int 
 }
 
 
-inline void radix_fill1(int* buffer, const int* vec, int length, int index1[256])
-{
-  for (int pos = 0; pos < length; ++pos) {
-    const int value = vec[pos];
-    const int target_pos = index1[value & 255]++;
-    buffer[target_pos] = value;
-  }
-}
-
-
-inline void radix_fill2(int* vec, const int* buffer, int length, int index2[256])
-{
-  for (int pos = 0; pos < length; ++pos) {
-    const int value = buffer[pos];
-    const int target_pos = index2[(value >> 8) & 255]++;
-    vec[target_pos] = value;
-  }
-}
-
-
-inline void radix_fill3(int* buffer, const int* vec, int length, int index3[256])
-{
-  for (int pos = 0; pos < length; ++pos) {
-    const int value = vec[pos];
-    const int target_pos = index3[(value >> 16) & 255]++;
-    buffer[target_pos] = value;
-  }
-}
-
-
-inline void radix_fill4(int* vec, const int* buffer, int length, int index4[256])
-{
-  for (int pos = 0; pos < length; ++pos) {
-    const int value = buffer[pos];
-    const int target_pos = index4[((value >> 24) & 255) ^ 128]++;
-    vec[target_pos] = value;
-  }
-}
-
-
 inline void cumulative_index(int* index, int nr_of_threads)
 {
   int tot_count = 0;
@@ -202,7 +162,7 @@ inline void cumulative_index(int* index, int nr_of_threads)
 }
 
 
-inline void count_occurrences1(const int nr_of_threads, int* index, const uint64_t* const pair_vec, const int half_length,
+inline void count_occurrences1(const int nr_of_threads, int* index, const uint64_t* const pair_vec, const int quarter_length,
   const double batch_size, const int length, const int* vec)
 {
 #pragma omp parallel num_threads(nr_of_threads)
@@ -211,8 +171,8 @@ inline void count_occurrences1(const int nr_of_threads, int* index, const uint64
     for (int thread = 0; thread < nr_of_threads; thread++) {
 
       // range
-      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
-      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
+      const int pos_start = 16 * ((static_cast<int>(thread * batch_size) + 15) / 16);
+      const int pos_end = std::min(16 * ((static_cast<int>((thread + 1) * batch_size) + 15) / 16), quarter_length);
 
       // local cache index
       int thread_index[THREAD_INDEX_INT_SIZE] = { 0 };  // 8 kB
@@ -220,26 +180,125 @@ inline void count_occurrences1(const int nr_of_threads, int* index, const uint64
       // iterate uint64_t values
       for (int pos = pos_start; pos < pos_end; pos++) {
 
-        // get source value
-        const uint64_t val = pair_vec[pos];
+        // first source value
+        uint64_t val = pair_vec[pos++];
 
         thread_index[val & 2047]++;  // byte 0
         thread_index[(val >> 32) & 2047]++;  // byte 4
+
+        // second source value
+        val = pair_vec[pos];
+
+        thread_index[val & 2047]++;  // byte 0
+        thread_index[(val >> 32) & 2047]++;  // byte 4
+      }
+
+      if (thread == (nr_of_threads - 1)) {
+        for (int pos = pos_end * 4; pos < length; pos++)
+        {
+          const int val = vec[pos];
+          thread_index[val & 2047]++;  // byte 0
+        }
       }
         
       // to main memory
       memcpy(&index[THREAD_INDEX_INT_SIZE * thread], &thread_index, 4 * THREAD_INDEX_INT_SIZE);
     }
   }
+}
 
-  // last element is added to last thread counts
-  if (length % 2 == 1) {
-    const auto val = vec[length - 1];
-    const int offset = THREAD_INDEX_INT_SIZE * (nr_of_threads - 1);
 
-    index[offset + (val & 2047)]++;  // byte 0
+inline void count_occurrences2(const int nr_of_threads, int* index, const uint64_t* const pair_vec, const int quarter_length,
+  const double batch_size, const int length, const int* vec)
+{
+#pragma omp parallel num_threads(nr_of_threads)
+  {
+#pragma omp for
+    for (int thread = 0; thread < nr_of_threads; thread++) {
+
+      // range
+      const int pos_start = 16 * ((static_cast<int>(thread * batch_size) + 15) / 16);
+      const int pos_end = std::min(16 * ((static_cast<int>((thread + 1) * batch_size) + 15) / 16), quarter_length);
+
+      // local cache index
+      int thread_index[THREAD_INDEX_INT_SIZE] = { 0 };  // 8 kB
+
+      // iterate uint64_t values
+      for (int pos = pos_start; pos < pos_end; pos++) {
+
+        // first source value
+        uint64_t val = pair_vec[pos++];
+
+        thread_index[(val >> 11) & 2047]++;  // byte 0
+        thread_index[(val >> 43) & 2047]++;  // byte 4
+
+        // second source value
+        val = pair_vec[pos];
+
+        thread_index[(val >> 11) & 2047]++;  // byte 0
+        thread_index[(val >> 43) & 2047]++;  // byte 4
+      }
+
+      if (thread == (nr_of_threads - 1)) {
+        for (int pos = pos_end * 4; pos < length; pos++)
+        {
+          const int val = vec[pos];
+          thread_index[(val >> 11) & 2047]++;  // byte 0
+        }
+      }
+
+      // to main memory
+      memcpy(&index[THREAD_INDEX_INT_SIZE * thread], &thread_index, 4 * THREAD_INDEX_INT_SIZE);
+    }
   }
 }
+
+
+inline void count_occurrences3(const int nr_of_threads, int* index, const uint64_t* const pair_vec, const int quarter_length,
+  const double batch_size, const int length, const int* vec)
+{
+#pragma omp parallel num_threads(nr_of_threads)
+  {
+#pragma omp for
+    for (int thread = 0; thread < nr_of_threads; thread++) {
+
+      // range
+      const int pos_start = 16 * ((static_cast<int>(thread * batch_size) + 15) / 16);
+      const int pos_end = std::min(16 * ((static_cast<int>((thread + 1) * batch_size) + 15) / 16), quarter_length);
+
+      // local cache index
+      int thread_index[THREAD_INDEX_INT_SIZE] = { 0 };  // 8 kB
+
+      // iterate uint64_t values
+      for (int pos = pos_start; pos < pos_end; pos++) {
+
+        // first source value
+        uint64_t val = pair_vec[pos++];
+
+        thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
+        thread_index[((val >> 43) & 1023) ^ 512]++;  // byte 4
+
+        // second source value
+        val = pair_vec[pos];
+
+        thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
+        thread_index[((val >> 43) & 1023) ^ 512]++;  // byte 4
+      }
+
+      if (thread == (nr_of_threads - 1)) {
+        for (int pos = pos_end * 4; pos < length; pos++)
+        {
+          const int val = vec[pos];
+          thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
+        }
+      }
+
+      // to main memory
+      memcpy(&index[THREAD_INDEX_INT_SIZE * thread], &thread_index, 4 * THREAD_INDEX_INT_SIZE);
+    }
+  }
+}
+
 
 void radix_sort_int(int* vec, const int length, int* buffer)
 {
@@ -260,13 +319,13 @@ void radix_sort_int(int* vec, const int length, int* buffer)
   int* index = index_p.get();
 
   const auto pair_vec = reinterpret_cast<uint64_t*>(vec);
-  const int half_length = length / 2;
-  const double batch_size = static_cast<double>(half_length + 0.01) / static_cast<double>(nr_of_threads);
+  const int quarter_length = length / 4;
+  const double batch_size = static_cast<double>(quarter_length + 0.01) / static_cast<double>(nr_of_threads);  // 4 integers
 
   uint64_t t0 = cpu_cycles();
 
   // phase 1: bit 0 - 10 occurence count
-  count_occurrences1(nr_of_threads, index, pair_vec, half_length, batch_size, length, vec);
+  count_occurrences1(nr_of_threads, index, pair_vec, quarter_length, batch_size, length, vec);
 
   uint64_t t1 = cpu_cycles();
   std::cout << "count: " << (t1 - t0) / 10000 << "\n" << std::flush;
@@ -290,41 +349,64 @@ void radix_sort_int(int* vec, const int length, int* buffer)
     for (int thread = 0; thread < nr_of_threads; thread++) {
 
       // range
-      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
-      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
+      // range
+      const int pos_start = 16 * ((static_cast<int>(thread * batch_size) + 15) / 16);
+      const int pos_end = std::min(16 * ((static_cast<int>((thread + 1) * batch_size) + 15) / 16), quarter_length);
 
       // local cache index
       int thread_index[THREAD_INDEX_INT_SIZE];  // 1 kB
 
-      // copy relevant index main memory
+      // copy relevant index from main memory
       const int index_start = THREAD_INDEX_INT_SIZE * thread;
       memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
 
       // iterate uint64_t values
+      int hash_pos = pos_start;
       for (int pos = pos_start; pos < pos_end; pos++) {
 
-        // determine value of source vec
-        const uint64_t val = pair_vec[pos];
+        // first source vec
+        uint64_t val = pair_vec[pos++];
 
         // set value in target buffer
-        const int pos_low  = thread_index[ val        & 2047]++;  // byte 0
-        const int pos_high = thread_index[(val >> 32) & 2047]++;  // byte 4
+        const uint64_t val1 =  val        & 2047;
+        const uint64_t val2 = (val >> 32) & 2047;
+        int pos_low  = thread_index[val1]++;  // byte 0
+        int pos_high = thread_index[val2]++;  // byte 4
 
         buffer_p[pos_low ] = val & 4294967295;
         buffer_p[pos_high] = (val >> 32) & 4294967295;
 
-        // order vector must be mutated here
+        // determine value of source vec
+        val = pair_vec[pos];  // no increment
+
+        // set value in target buffer
+        const uint64_t val3 =  val        & 2047;
+        const uint64_t val4 = (val >> 32) & 2047;
+        pos_low  = thread_index[val3]++;  // byte 0
+        pos_high = thread_index[val4]++;  // byte 4
+
+        buffer_p[pos_low] = val & 4294967295;
+        buffer_p[pos_high] = (val >> 32) & 4294967295;
+
+        // overwrite pair_vec[pos] with val1 and val2 (high speed?)
+        pair_vec[hash_pos++] = val1 | (val2 << 11) | (val3 << 22) | (val4 << 44);  // no increment
       }
 
       // check last element in last thread
       if (thread == (nr_of_threads - 1)) {
-        if (length % 2 == 1) {
+        for (int pos = pos_end * 4; pos < length; pos++)
+        {
           // determine value of source vec
-          const int val = vec[length - 1];  // no casting required (?)
+          const int val = vec[pos];
+
+          const uint64_t val1 = val & 2047;
 
           // set value in target buffer
-          const int pos_low = thread_index[val & 2047];  // no need to increment
+          const int pos_low = thread_index[val1];  // no need to increment
           buffer[pos_low] = val;
+
+          // this uses only the lower 11 bits for speed
+          pair_vec[hash_pos++] = val1;
         }
       }
     }
@@ -337,39 +419,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 
   const auto buffer_pair_vec = reinterpret_cast<uint64_t*>(buffer);
 
-#pragma omp parallel num_threads(nr_of_threads)
-  {
-#pragma omp for
-    for (int thread = 0; thread < nr_of_threads; thread++) {
-
-      // range
-      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
-      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
-
-      // local cache index
-      int thread_index[THREAD_INDEX_INT_SIZE] = { 0 };  // 1 kB
-
-      // iterate uint64_t values
-      for (int pos = pos_start; pos < pos_end; pos++) {
-        const uint64_t val = buffer_pair_vec[pos];
-
-        thread_index[(val >> 11) & 2047]++;  // byte 0
-        thread_index[(val >> 43) & 2047]++;  // byte 4
-      }
-
-      // to main memory
-      // to main memory
-      memcpy(&index[THREAD_INDEX_INT_SIZE * thread], &thread_index, 4 * THREAD_INDEX_INT_SIZE);
-    }
-  }
-
-  // last element is added to last thread counts
-  if (length % 2 == 1) {
-    const auto val = static_cast<uint32_t>(buffer[length - 1]);
-    const int offset = THREAD_INDEX_INT_SIZE * (nr_of_threads - 1);
-
-    index[offset + ((val >> 11) & 2047)]++;  // byte 0
-  }
+  // phase 1: bit 0 - 10 occurence count
+  count_occurrences2(nr_of_threads, index, buffer_pair_vec, quarter_length, batch_size, length, buffer);
 
   // phase 2: determine cumulative positions per thread
 
@@ -385,8 +436,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
     for (int thread = 0; thread < nr_of_threads; thread++) {
 
       // range
-      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
-      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
+      const int pos_start = 16 * ((static_cast<int>(thread * batch_size) + 15) / 16);
+      const int pos_end = std::min(16 * ((static_cast<int>((thread + 1) * batch_size) + 15) / 16), quarter_length);
 
       // local cache index
       int thread_index[THREAD_INDEX_INT_SIZE];  // 1 kB
@@ -396,30 +447,53 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
 
       // iterate uint64_t values
+      int hash_pos = pos_start;
       for (int pos = pos_start; pos < pos_end; pos++) {
 
-        // determine value of source vec
-        const uint64_t val = buffer_pair_vec[pos];
+        // first source vec
+        uint64_t val = buffer_pair_vec[pos++];
 
         // set value in target buffer
-        const int pos_low  = thread_index[(val >> 11) & 2047]++;  // byte 0
-        const int pos_high = thread_index[(val >> 43) & 2047]++;  // byte 4
+        const uint64_t val1 = (val >> 11) & 2047;
+        const uint64_t val2 = (val >> 43) & 2047;
+        int pos_low  = thread_index[val1]++;  // byte 0
+        int pos_high = thread_index[val2]++;  // byte 4
 
-        uvec[pos_low] = val & 4294967295;
+        uvec[pos_low]  =  val        & 4294967295;
         uvec[pos_high] = (val >> 32) & 4294967295;
 
-        // order vector must be mutated here
+        // determine value of source vec
+        val = buffer_pair_vec[pos];  // no increment
+
+        // set value in target buffer
+        const uint64_t val3 = (val >> 11) & 2047;
+        const uint64_t val4 = (val >> 43) & 2047;
+        pos_low  = thread_index[val3]++;  // byte 0
+        pos_high = thread_index[val4]++;  // byte 4
+
+        uvec[pos_low]  = val & 4294967295;
+        uvec[pos_high] = (val >> 32) & 4294967295;
+
+        // overwrite buffer_pair_vec[pos] with values
+        buffer_pair_vec[hash_pos++] = val1 | (val2 << 11) | (val3 << 22) | (val4 << 44);  // no increment
       }
 
-      // check last element in last thread
+
+      // check last elements in last thread
       if (thread == (nr_of_threads - 1)) {
-        if (length % 2 == 1) {
+        for (int pos = pos_end * 4; pos < length; pos++)
+        {
           // determine value of source vec
-          const int val = buffer[length - 1];  // no casting required (?)
+          const int val = buffer[pos];
+
+          const uint64_t val1 = (val >> 11) & 2047;
 
           // set value in target buffer
-          const int pos_low = thread_index[(val >> 11) & 2047];  // no need to increment
+          const int pos_low = thread_index[val1];  // no need to increment
           uvec[pos_low] = val;
+
+          // this uses only the lower 11 bits for speed
+          buffer_pair_vec[hash_pos++] = val1;
         }
       }
     }
@@ -427,44 +501,14 @@ void radix_sort_int(int* vec, const int length, int* buffer)
 
   // count bit 22 - 31
 
-#pragma omp parallel num_threads(nr_of_threads)
-  {
-#pragma omp for
-    for (int thread = 0; thread < nr_of_threads; thread++) {
+  // phase 3: bit 22 - 31 occurence count
+  count_occurrences3(nr_of_threads, index, pair_vec, quarter_length, batch_size, length, vec);
 
-      // range
-      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
-      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
-
-      // local cache index
-      int thread_index[THREAD_INDEX_INT_SIZE] = { 0 };  // 1 kB
-
-      // iterate uint64_t values
-      for (int pos = pos_start; pos < pos_end; pos++) {
-        const uint64_t val = pair_vec[pos];
-
-        thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
-        thread_index[((val >> 54) & 1023) ^ 512]++;  // byte 4
-      }
-
-      // to main memory
-      memcpy(&index[THREAD_INDEX_INT_SIZE * thread], &thread_index, 4 * THREAD_INDEX_INT_SIZE);
-    }
-  }
-
-  // last element is added to last thread counts
-  if (length % 2 == 1) {
-    const auto val = static_cast<uint32_t>(vec[length - 1]);
-    const int offset = THREAD_INDEX_INT_SIZE * (nr_of_threads - 1);
-
-    index[offset + (((val >> 22) & 1023) ^ 512)]++;  // byte 0
-  }
-
-  // phase 2: determine cumulative positions per thread
+  // phase 3: determine cumulative positions per thread
 
   cumulative_index(index, nr_of_threads);
 
-  // phase 2 bits 22-31: fill result vector
+  // phase 3 bits 22-31: fill result vector
 
 #pragma omp parallel num_threads(nr_of_threads)
   {
@@ -472,8 +516,8 @@ void radix_sort_int(int* vec, const int length, int* buffer)
     for (int thread = 0; thread < nr_of_threads; thread++) {
 
       // range
-      const int pos_start = 32 * ((static_cast<int>(thread * batch_size) + 31) / 32);
-      const int pos_end = std::min(32 * ((static_cast<int>((thread + 1) * batch_size) + 31) / 32), half_length);
+      const int pos_start = 16 * ((static_cast<int>(thread * batch_size) + 15) / 16);
+      const int pos_end = std::min(16 * ((static_cast<int>((thread + 1) * batch_size) + 15) / 16), quarter_length);
 
       // local cache index
       int thread_index[THREAD_INDEX_INT_SIZE];  // 1 kB
@@ -483,29 +527,41 @@ void radix_sort_int(int* vec, const int length, int* buffer)
       memcpy(thread_index, &index[index_start], THREAD_INDEX_INT_SIZE * 4);
 
       // iterate uint64_t values
+      int hash_pos = pos_start;
       for (int pos = pos_start; pos < pos_end; pos++) {
 
-        // determine value of source vec
-        const uint64_t val = pair_vec[pos];
+        // first source vec
+        uint64_t val = pair_vec[pos++];
 
         // set value in target buffer
-        const int pos_low  = thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
-        const int pos_high = thread_index[((val >> 54) & 1023) ^ 512]++;  // byte 4
+        int pos_low  = thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
+        int pos_high = thread_index[((val >> 54) & 1023) ^ 512]++;  // byte 4
 
-        buffer_p[pos_low]  = val & 4294967295;
+        buffer_p[pos_low] = val & 4294967295;
         buffer_p[pos_high] = (val >> 32) & 4294967295;
 
-        // order vector must be mutated here
+        // determine value of source vec
+        val = pair_vec[pos];  // no increment
+
+        // set value in target buffer
+        pos_low = thread_index[((val >> 22) & 1023) ^ 512]++;  // byte 0
+        pos_high = thread_index[((val >> 54) & 1023) ^ 512]++;  // byte 4
+
+        buffer_p[pos_low] = val & 4294967295;
+        buffer_p[pos_high] = (val >> 32) & 4294967295;
       }
 
-      // check last element in last thread
+      // check last elements in last thread
       if (thread == (nr_of_threads - 1)) {
-        if (length % 2 == 1) {
+        for (int pos = pos_end * 4; pos < length; pos++)
+        {
           // determine value of source vec
-          const int val = vec[length - 1];  // no casting required (?)
+          const int val = vec[pos];
+
+          const uint64_t val1 = ((val >> 22) & 1023) ^ 512;
 
           // set value in target buffer
-          const int pos_low = thread_index[((val >> 22) & 1023) ^ 512];  // no need to increment
+          const int pos_low = thread_index[val1];  // no need to increment
           buffer[pos_low] = val;
         }
       }
