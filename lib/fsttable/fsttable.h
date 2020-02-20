@@ -13,6 +13,8 @@
 #include <interface/fstdefines.h>
 
 #include <byteblock/byteblock_v13.h>
+#include "../fst/interface/fstdefines.h"
+#include "../fst/interface/istringwriter.h"
 
 
 class DestructableObject
@@ -69,7 +71,7 @@ public:
 	}
 
 	void BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64_t endElem, uint64_t vecOffset,
-    unsigned int* sizeMeta, char* buf);
+    uint32_t* sizeMeta, char* buf);
 
 	const char* GetElement(uint64_t elementNr);
 
@@ -507,7 +509,7 @@ public:
 		(*strVec)[elementNr] = strElem;
 	}
 
-	void SetElement(uint64_t elementNr, const char * str, unsigned int strLen)
+	void SetElement(uint64_t elementNr, const char * str, uint32_t strLen)
 	{
 		std::string strElem(str, strLen);
 		(*strVec)[elementNr] = strElem;
@@ -536,12 +538,12 @@ class BlockWriter : public IStringWriter
 
 public:
 	// Stack buffers
-	unsigned int naIntsBuf[1 + BLOCKSIZE_CHAR / 32];  // we have 32 NA bits per integer
-	unsigned int strSizesBuf[BLOCKSIZE_CHAR];  // we have 32 NA bits per integer
+	uint32_t naIntsBuf[1 + BLOCKSIZE_CHAR / 32];  // we have 32 NA bits per integer
+	uint32_t strSizesBuf[BLOCKSIZE_CHAR];  // we have 32 NA bits per integer
 	char strBuf[MAX_CHAR_STACK_SIZE];
 
 	// Heap buffer
-	unsigned int heapBufSize = BASIC_HEAP_SIZE;
+	uint32_t heapBufSize = BASIC_HEAP_SIZE;
 	char* heapBuf = new char[BASIC_HEAP_SIZE];
 
 	BlockWriter(std::vector<std::string> &strVec)
@@ -550,7 +552,7 @@ public:
 
 		this->naInts = naIntsBuf;
 		this->strSizes = strSizesBuf;
-		this->vecLength = static_cast<unsigned int>(strVec.size());
+		this->vecLength = static_cast<uint32_t>(strVec.size());
 	}
 
 	~BlockWriter() { delete[] heapBuf; }
@@ -558,12 +560,12 @@ public:
 	void SetBuffersFromVec(uint64_t startCount, uint64_t endCount)
 	{
 		// Determine string lengths
-		// unsigned int startCount = block * BLOCKSIZE_CHAR;
+		// uint32_t startCount = block * BLOCKSIZE_CHAR;
 		const uint64_t nrOfElements = endCount - startCount;  // the string at position endCount is not included
 		const uint64_t nrOfNAInts = 1 + nrOfElements / 32;  // add 1 bit for NA present flag
 
-		unsigned int totSize = 0;
-		//unsigned int hasNA = 0;
+		uint32_t totSize = 0;
+		//uint32_t hasNA = 0;
 		int sizeCount = -1;
 
 		memset(naInts, 0, nrOfNAInts * 4);  // clear NA bit metadata block (neccessary?)
@@ -576,12 +578,12 @@ public:
 			//if (strElem == NA_STRING)  // set NA bit
 			//{
 			//	++hasNA;
-			//	unsigned int intPos = (count - startCount) / 32;
-			//	unsigned int bitPos = (count - startCount) % 32;
+			//	uint32_t intPos = (count - startCount) / 32;
+			//	uint32_t bitPos = (count - startCount) % 32;
 			//	naInts[intPos] |= 1 << bitPos;
 			//}
 
-			totSize += static_cast<unsigned int>(strElem.size());
+			totSize += static_cast<uint32_t>(strElem.size());
 			strSizes[++sizeCount] = totSize;
 		}
 
@@ -595,8 +597,8 @@ public:
 
 
 		// Write string data
-		unsigned int pos;
-		unsigned int lastPos = 0;
+		uint32_t pos;
+		uint32_t lastPos = 0;
 		sizeCount = -1;
 
 		activeBuf = strBuf;
@@ -606,7 +608,7 @@ public:
 			if (totSize > heapBufSize)
 			{
 				delete[] heapBuf;
-				heapBufSize = (unsigned int) (totSize * 1.1);
+				heapBufSize = (uint32_t) (totSize * 1.1);
 				heapBuf = new char[heapBufSize];
 			}
 
@@ -665,7 +667,7 @@ public:
 	FstTable* SubSet(std::vector<std::string> &columnNames, unsigned long long startRow, unsigned long long endRow) const
 	{
 		FstTable* subset = new FstTable();
-		subset->InitTable(static_cast<unsigned int>(columnNames.size()), 1 + endRow - startRow);
+		subset->InitTable(static_cast<uint32_t>(columnNames.size()), 1 + endRow - startRow);
 
 		int subSetColNr = 0;
 		for (std::vector<std::string>::iterator colIt = columnNames.begin(); colIt != columnNames.end(); ++colIt)
@@ -736,7 +738,7 @@ public:
 		}
 	}
 
-	void InitTable(unsigned int nrOfCols, unsigned long long nrOfRows)
+	void InitTable(uint32_t nrOfCols, unsigned long long nrOfRows)
 	{
 		if (this->columns != nullptr)
 		{
@@ -835,11 +837,11 @@ public:
 		(*columnTypes)[colNr] = FstColumnType::FACTOR;
 	}
 
-	void SetKeyColumns(int * keyColPos, unsigned int nrOfKeys)
+	void SetKeyColumns(int * keyColPos, uint32_t nrOfKeys)
 	{
 	}
 
-	FstColumnType ColumnType(unsigned int colNr, FstColumnAttribute &columnAttribute, short int &scale, std::string &annotation, bool &hasAnnotation)
+	FstColumnType ColumnType(uint32_t colNr, FstColumnAttribute &columnAttribute, short int &scale, std::string &annotation, bool &hasAnnotation)
 	{
 		columnAttribute = (*columnAttributes)[colNr];
 		annotation += (*colAnnotations)[colNr];
@@ -849,7 +851,7 @@ public:
 		return (*columnTypes)[colNr];
 	}
 
-	IStringWriter* GetStringWriter(unsigned int colNr)
+	IStringWriter* GetStringWriter(uint32_t colNr)
 	{
 		// TODO: Add colType checker
 		std::shared_ptr<DestructableObject> sp = (*columns)[colNr];
@@ -858,7 +860,7 @@ public:
 		return new BlockWriter(*strVecP);
 	}
 
-	int* GetLogicalWriter(unsigned int colNr)
+	int* GetLogicalWriter(uint32_t colNr)
 	{
 		// TODO: Add colType checker
 		std::shared_ptr<DestructableObject> sp = (*columns)[colNr];
@@ -866,7 +868,7 @@ public:
 		return intVec->Data();
 	}
 
-	int* GetIntWriter(unsigned int colNr)
+	int* GetIntWriter(uint32_t colNr)
 	{
 		// TODO: Add colType checker
 		std::shared_ptr<DestructableObject> sp = (*columns)[colNr];
@@ -874,7 +876,7 @@ public:
 		return intVec->Data();
 	}
 
-	char* GetByteWriter(unsigned int colNr)
+	char* GetByteWriter(uint32_t colNr)
 	{
 		// TODO: Add colType checker
 		std::shared_ptr<DestructableObject> sp = (*columns)[colNr];
@@ -882,7 +884,7 @@ public:
 		return byteVec->Data();
 	}
 
-	int* GetDateTimeWriter(unsigned int colNr)
+	int* GetDateTimeWriter(uint32_t colNr)
 	{
 		// TODO: Add colType checker
 		std::shared_ptr<DestructableObject> sp = (*columns)[colNr];
@@ -890,7 +892,7 @@ public:
 		return intVec->Data();
 	}
 
-	long long* GetInt64Writer(unsigned int colNr)
+	long long* GetInt64Writer(uint32_t colNr)
 	{
 		std::shared_ptr<DestructableObject> sp = (*columns)[colNr];
 		LongVector* int64Vec = static_cast<LongVector*>(&(*sp));
@@ -898,7 +900,7 @@ public:
 	}
 
 
-	double* GetDoubleWriter(unsigned int colNr)
+	double* GetDoubleWriter(uint32_t colNr)
 	{
 		// TODO: Add colType checker
 		std::shared_ptr<DestructableObject> sp = (*columns)[colNr];
@@ -906,7 +908,7 @@ public:
 		return dblVec->Data();
 	}
 
-	IByteBlockColumn* GetByteBlockWriter(unsigned int col_nr)
+	IByteBlockColumn* GetByteBlockWriter(uint32_t col_nr)
 	{
 		std::shared_ptr<DestructableObject> byte_block_writer = (*columns)[col_nr];
 
@@ -915,7 +917,7 @@ public:
 	}
 
 
-	IStringWriter* GetLevelWriter(unsigned int colNr)
+	IStringWriter* GetLevelWriter(uint32_t colNr)
 	{
 		// TODO: Add colType checker
 
@@ -941,14 +943,14 @@ public:
 
 	void GetKeyColumns(int* keyColPos) {}
 
-	unsigned int NrOfKeys()
+	uint32_t NrOfKeys()
 	{
 		return 0;
 	}
 
-	unsigned int NrOfColumns()
+	uint32_t NrOfColumns()
 	{
-		return (unsigned int) columnTypes->size();
+		return (uint32_t) columnTypes->size();
 	}
 
 	unsigned long long NrOfRows()

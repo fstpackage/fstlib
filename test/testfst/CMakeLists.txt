@@ -17,8 +17,6 @@ set(testfst_SRCS
 	scaletest.cpp
 	SetThreads.cpp
 	special_tables.cpp
-	sort_int_test.cpp
-	sort_logical_test.cpp
 )
 
 # create test executable
