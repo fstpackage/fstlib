@@ -9,7 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # generate position independent code
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-
 # define fstlib project
 project(fstlib)
 
