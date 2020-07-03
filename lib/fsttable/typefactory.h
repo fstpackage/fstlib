@@ -38,7 +38,7 @@ class BlobContainer : public IBlobContainer
 public:
 	BlobContainer(unsigned long long size)
 	{
-		shared_data = std::make_shared<Blob>(size);
+		shared_data = std::make_shared<Blob>(std::max(size, 1ULL));
 		blobSize = size;
 	}
 

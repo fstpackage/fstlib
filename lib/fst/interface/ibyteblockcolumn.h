@@ -22,33 +22,22 @@
 */
 
 
-#ifndef ISTRINGWRITER_H
-#define ISTRINGWRITER_H
+#ifndef IBYTEBLOCKCOLUMN_H
+#define IBYTEBLOCKCOLUMN_H
 
-enum StringEncoding
-{
-	NATIVE = 0,
-	LATIN1,
-	UTF8
-};
+#include <memory>
 
+#include "ifstcolumn.h"
 
-class IStringWriter
+class IByteBlockColumn
 {
 public:
-  unsigned int* strSizes = nullptr;
-  unsigned int* naInts = nullptr;
-  unsigned int bufSize = 0;
-  char* activeBuf = nullptr;
-  unsigned long long vecLength = 0;
+  uint64_t vecLength = 0;
 
-  virtual ~IStringWriter() {}
+  virtual ~IByteBlockColumn() = default;
 
-  virtual StringEncoding Encoding() = 0;
-
-  virtual void SetBuffersFromVec(uint64_t startCount, uint64_t endCount) = 0;
+  virtual void SetSizesAndPointers(const char** elements, uint64_t* sizes, uint64_t row_start, uint64_t block_size) = 0;
 };
 
 
-#endif  // ISTRINGWRITER_H
-
+#endif  // IBYTEBLOCKCOLUMN_H

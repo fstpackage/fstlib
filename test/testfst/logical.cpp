@@ -42,7 +42,7 @@ TEST_F(LogicalTest, SmallVec)
 	// Add byte column
 
 
-  LogicalVectorAdapter logicalVec(nrOfRows);
+    LogicalVectorAdapter logicalVec(nrOfRows);
 	int* logicalP = logicalVec.Data();
 	IntSeq(logicalP, nrOfRows, 0, 2);
 

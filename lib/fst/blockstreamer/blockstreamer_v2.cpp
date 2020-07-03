@@ -82,6 +82,8 @@ void fdsStreamUncompressed_v2(ofstream& myfile, char* vec, unsigned long long ve
     myfile.write(reinterpret_cast<char*>(&aLength), 4);
   }
 
+  // nothing to write
+  if (vecLength == 0) return;
 
   // No fixed ratio compressor specified
   if (fixedRatioCompressor == nullptr)
@@ -226,6 +228,9 @@ void fdsStreamcompressed_v2(ofstream& myfile, char* colVec, unsigned long long n
     unsigned int aLength = 0;
     myfile.write(reinterpret_cast<char*>(&aLength), 4);
   }
+
+  // nothing to write
+  if (nrOfRows == 0) return;
 
   unsigned long long curPos = myfile.tellp();
 
@@ -554,6 +559,8 @@ void fdsReadColumn_v2(istream& myfile, char* outVec, unsigned long long blockPos
     }
   }
 
+  // there is no data to read
+  if (length == 0) return;
 
   blockPos += 4 + annotationLength;
 

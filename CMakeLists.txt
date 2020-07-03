@@ -9,7 +9,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # generate position independent code
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-
 # define fstlib project
 project(fstlib)
 
@@ -31,9 +30,6 @@ enable_testing(true)
 # add external compression libraries
 add_subdirectory(ext/lz4)
 add_subdirectory(ext/zstd)
-
-# add arrow library
-add_subdirectory(ext/arrow)
 
 # add the fst library components
 add_subdirectory(lib/fst)
