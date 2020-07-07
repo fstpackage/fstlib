@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -40,7 +34,7 @@ inline unsigned int StoreCharBlock_v6(ofstream& myfile, IStringWriter* blockRunn
 {
   blockRunner->SetBuffersFromVec(startCount, endCount);
 
-  unsigned int nrOfElements = endCount - startCount; // the string at position endCount is not included
+  unsigned int nrOfElements = static_cast<unsigned int>(endCount - startCount); // the string at position endCount is not included
   unsigned int nrOfNAInts = 1 + nrOfElements / 32; // add 1 bit for NA present flag
 
   myfile.write(reinterpret_cast<char*>(blockRunner->strSizes), nrOfElements * 4); // write string lengths
@@ -112,7 +106,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 
   if (compression == 0)
   {
-    uint32_t metaSize = CHAR_HEADER_SIZE + (nrOfBlocks + 1) * 8;
+    uint32_t metaSize = static_cast<uint32_t>((CHAR_HEADER_SIZE + (nrOfBlocks + 1) * 8));
 
     // first CHAR_HEADER_SIZE bytes store compression setting and block size
     std::unique_ptr<char[]> metaP(new char[metaSize]);
@@ -153,7 +147,7 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
 
   // Use compression
 
-  uint32_t metaSize = CHAR_HEADER_SIZE + (nrOfBlocks + 1) * CHAR_INDEX_SIZE; // 1 long and 2 unsigned int per block
+  uint32_t metaSize = static_cast<uint32_t>((CHAR_HEADER_SIZE + (nrOfBlocks + 1) * CHAR_INDEX_SIZE)); // 1 long and 2 unsigned int per block
 
   std::unique_ptr<char[]> metaP(new char[metaSize]);
   char* meta = metaP.get();
@@ -186,23 +180,23 @@ void fdsWriteCharVec_v6(ofstream& myfile, IStringWriter* stringWriter, int compr
   {
     // Integer vector compressor
     compressInt = new SingleCompressor(LZ4_SHUF4, 0);
-    streamCompressInt = new StreamLinearCompressor(compressInt, 2 * compression);
+    streamCompressInt = new StreamLinearCompressor(compressInt, 2.0F * compression);
 
     // Character vector compressor
     compressChar = new SingleCompressor(LZ4, 20);
-    streamCompressChar = new StreamLinearCompressor(compressChar, 2 * compression); // unknown blockSize
+    streamCompressChar = new StreamLinearCompressor(compressChar, 2.0F * compression); // unknown blockSize
   }
   else // 51 - 100
   {
     // Integer vector compressor
     compressInt = new SingleCompressor(LZ4_SHUF4, 0);
     compressInt2 = new SingleCompressor(ZSTD_SHUF4, 0);
-    streamCompressInt = new StreamCompositeCompressor(compressInt, compressInt2, 2 * (compression - 50));
+    streamCompressInt = new StreamCompositeCompressor(compressInt, compressInt2, 2.0F * (compression - 50));
 
     // Character vector compressor
     compressChar = new SingleCompressor(LZ4, 20);
     compressChar2 = new SingleCompressor(ZSTD, 20);
-    streamCompressChar = new StreamCompositeCompressor(compressChar, compressChar2, 2 * (compression - 50));
+    streamCompressChar = new StreamCompositeCompressor(compressChar, compressChar2, 2.0F * (compression - 50));
   }
 
   for (unsigned long long block = 0; block < nrOfBlocks; ++block)

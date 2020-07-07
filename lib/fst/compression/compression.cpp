@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -977,7 +971,8 @@ unsigned int ZSTD_INT_TO_BYTE_C(char* dst, unsigned int dstCapacity, const char*
 
   CompactIntToByte(buf, src, srcSize / 4);
 
-  return ZSTD_compress(dst, dstCapacity, static_cast<char*>(buf),  8 * nrOfLongs,  (compressionLevel * ZSTD_maxCLevel()) / 100);
+  return static_cast<unsigned int>(ZSTD_compress(dst, dstCapacity, static_cast<char*>(buf), 8 * nrOfLongs,
+      (compressionLevel * ZSTD_maxCLevel()) / 100));
 }
 
 unsigned int ZSTD_INT_TO_BYTE_D(char* dst, unsigned int dstCapacity, const char* src, unsigned int compressedSize)
@@ -1031,7 +1026,8 @@ unsigned int ZSTD_INT_TO_SHORT_SHUF2_C(char* dst, unsigned int dstCapacity, cons
 
   CompactIntToShort(buf, src, srcSize / 4);  // expecting a integer vector here
 
-  return ZSTD_compress(dst, dstCapacity, static_cast<char*>(buf), nrOfLongs * 8, (compressionLevel * ZSTD_maxCLevel()) / 100);
+  return static_cast<unsigned int>(ZSTD_compress(dst, dstCapacity, static_cast<char*>(buf), nrOfLongs * 8,
+      (compressionLevel * ZSTD_maxCLevel()) / 100));
 }
 
 unsigned int ZSTD_INT_TO_SHORT_SHUF2_D(char* dst, unsigned int dstCapacity, const char* src, unsigned int compressedSize)
@@ -1157,7 +1153,8 @@ unsigned int ZSTD_LOGIC64_C(char* dst, unsigned int dstCapacity, const char* src
 
   LogicCompr64(src, buf, nrOfLogicals);
 
-  return ZSTD_compress(dst, dstCapacity, (char*) buf,  nrOfLongs * 8,  (compressionLevel * ZSTD_maxCLevel()) / 100);
+  return static_cast<unsigned int>(ZSTD_compress(dst, dstCapacity, (char*)buf, nrOfLongs * 8,
+      (compressionLevel * ZSTD_maxCLevel()) / 100));
 }
 
 unsigned int ZSTD_LOGIC64_D(char* dst, unsigned int dstCapacity, const char* src, unsigned int compressedSize)
@@ -1243,7 +1240,8 @@ unsigned int ZSTD_C_SHUF8(char* dst, unsigned int dstCapacity, const char* src, 
   double shuffleBuf[MAX_SIZE_COMPRESS_BLOCK_8];
 
   ShuffleReal((double*) src, shuffleBuf, doubleSize);
-  return ZSTD_compress(dst, dstCapacity, (char*) shuffleBuf, srcSize, (compressionLevel * ZSTD_maxCLevel()) / 100);
+  return static_cast<unsigned int>(ZSTD_compress(dst, dstCapacity, (char*)shuffleBuf, srcSize,
+      (compressionLevel * ZSTD_maxCLevel()) / 100));
 }
 
 unsigned int ZSTD_D_SHUF8(char* dst, unsigned int dstCapacity, const char* src, unsigned int compressedSize)
@@ -1264,7 +1262,7 @@ unsigned int ZSTD_D_SHUF8(char* dst, unsigned int dstCapacity, const char* src, 
 
 unsigned int ZSTD_C(char* dst, unsigned int dstCapacity, const char* src,  unsigned int srcSize, int compressionLevel)
 {
-  return ZSTD_compress(dst, dstCapacity, src,  srcSize,  (compressionLevel * ZSTD_maxCLevel()) / 100);
+  return static_cast<unsigned int>(ZSTD_compress(dst, dstCapacity, src, srcSize, (compressionLevel * ZSTD_maxCLevel()) / 100));
 }
 
 unsigned int ZSTD_D(char* dst, unsigned int dstCapacity, const char* src, unsigned int compressedSize)
@@ -1283,7 +1281,9 @@ unsigned int ZSTD_C_SHUF4(char* dst, unsigned int dstCapacity, const char* src, 
   // int shuffleBuf[MAX_SIZE_COMPRESS_BLOCK_QUARTER];
 
   ShuffleInt2((int*) src, reinterpret_cast<int*>(shuffleBuf), int_size);
-  return ZSTD_compress(dst, dstCapacity, reinterpret_cast<char*>(shuffleBuf), src_size, (compressionLevel * ZSTD_maxCLevel()) / 100);
+
+  return static_cast<unsigned int>(ZSTD_compress(dst, dstCapacity, reinterpret_cast<char*>(shuffleBuf), src_size,
+      (compressionLevel * ZSTD_maxCLevel()) / 100));
 }
 
 unsigned int ZSTD_D_SHUF4(char* dst, unsigned int dstCapacity, const char* src, unsigned int compressedSize)

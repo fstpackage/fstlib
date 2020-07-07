@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -149,7 +143,7 @@ inline int MaxCompressSize(int blockSize, CompAlgoType algoType)
       break;
 
     case CompAlgoType::ZSTD_TYPE:
-      compBufSize = ZSTD_compressBound(blockSize);  // maximum compressed block size
+      compBufSize = static_cast<int>(ZSTD_compressBound(blockSize));  // maximum compressed block size
       break;
 
     case CompAlgoType::UNCOMPRESSED:
@@ -168,7 +162,7 @@ inline int MaxCompressSize(int blockSize, CompAlgoType algoType)
     {
       int nrOfLogics = (blockSize + 3) / 4;  // safely round upwards
 	  const size_t nrOfLongs = 1 + (nrOfLogics - 1) / 32;
-      compBufSize = LZ4_COMPRESSBOUND(8 * nrOfLongs);  // 32 logicals are stored in a single 64 bit long
+      compBufSize = static_cast<int>(LZ4_COMPRESSBOUND(8 * nrOfLongs));  // 32 logicals are stored in a single 64 bit long
       break;
     }
 
@@ -176,7 +170,7 @@ inline int MaxCompressSize(int blockSize, CompAlgoType algoType)
     {
       int nrOfLogics = (blockSize + 3) / 4;  // safely round upwards
       const size_t nrOfLongs = 1 + (nrOfLogics - 1) / 32;
-      compBufSize = ZSTD_compressBound(8 * nrOfLongs);  // 32 logicals are stored in a single 64 bit long
+      compBufSize = static_cast<int>(ZSTD_compressBound(8 * nrOfLongs));  // 32 logicals are stored in a single 64 bit long
       break;
     }
 
@@ -184,7 +178,7 @@ inline int MaxCompressSize(int blockSize, CompAlgoType algoType)
     {
       int nrOfInts = (blockSize + 3) / 4;  // safely round upwards
 	  const size_t nrOfLongs = 1 + (nrOfInts - 1) / 8;  // 8 integers per long
-      compBufSize = ZSTD_compressBound(8 * nrOfLongs);  // 32 logicals are stored in a single 64 bit long
+      compBufSize = static_cast<int>(ZSTD_compressBound(8 * nrOfLongs));  // 32 logicals are stored in a single 64 bit long
       break;
     }
 
@@ -208,7 +202,7 @@ inline int MaxCompressSize(int blockSize, CompAlgoType algoType)
     {
       int nrOfInts = (blockSize + 3) / 4;  // safely round upwards
       size_t nrOfLongs = 1 + (nrOfInts - 1) / 4;  // 4 integers per long
-      compBufSize = ZSTD_compressBound(8 * nrOfLongs);  // 32 logicals are stored in a single 64 bit long
+      compBufSize = static_cast<int>(ZSTD_compressBound(8 * nrOfLongs));  // 32 logicals are stored in a single 64 bit long
       break;
     }
 
@@ -324,7 +318,7 @@ int DualCompressor::Compress(char* dst, unsigned int dstCapacity, const char* sr
 		lastSize2Local = lastSize2;
 	}
 
-  a1CountLocal += (a1RatioLocal / 100.0);  // check for use of algorithm 1
+  a1CountLocal += (a1RatioLocal / 100.0F);  // check for use of algorithm 1
 
   if (a1CountLocal > lastCountLocal)
   {
@@ -378,7 +372,7 @@ StreamLinearCompressor::StreamLinearCompressor(Compressor *compressor, float com
   compBufSize = 0;  // remove ?
   compress = compressor;
 
-  compFactor = compressionLevel / 100.0;  // >= 1.00
+  compFactor = compressionLevel / 100.0F;  // >= 1.00
 }
 
 int StreamLinearCompressor::CompressBufferSize()
@@ -442,7 +436,7 @@ StreamCompositeCompressor::StreamCompositeCompressor(Compressor *compressor1, Co
   compress1 = compressor2;
   compress2 = compressor1;
 
-  compFactor = compressionLevel / 100.0;
+  compFactor = compressionLevel / 100.0F;
 }
 
 int StreamCompositeCompressor::CompressBufferSize()
