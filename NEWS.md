@@ -1,12 +1,17 @@
 
-# fstlib 0.1.5 (in development)
+# fstlib 0.1.6 (in development)
+
+## License update
+
+* The license of the fstlib library was changed from the GNU AFFERO GENERAL PUBLIC LICENSE version 3 to MPL version 2.
+This allows for less restrictive use of the library, for example in comercial applications where fstlib is used as a unmodified component.
+
+
+# fstlib 0.1.5
 
 ## Library updates
 
 * Serialization of zero-row tables for all column types (#10)
-
-## Enhancements
-
 
 # fstlib 0.1.4
 
