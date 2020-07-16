@@ -249,6 +249,23 @@ public:
 		}
 	}
 
+	static void WriteReadFullTable(FstTable& table, const std::string file_name, const int compression)
+	{
+		ColumnFactory columnFactory;
+
+		// Get column names
+		FstStore fstStore(file_name);
+		fstStore.fstWrite(table, compression);
+
+		//// Read single column table from disk
+		std::vector<int> keyIndex;
+		StringArray selectedCols;
+		FstTable tableRead;
+
+		std::unique_ptr<StringColumn> col_names(new StringColumn());
+		fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
+	}
+
 	~ReadWriteTester()
 	{
 	}

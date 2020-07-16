@@ -47,10 +47,10 @@ using namespace std;
 // Table header [node A] [size: 48]
 //
 //  8                      | unsigned long long | hash value         // hash of table header
-//  4                      | unsigned int       | FST_VERSION        // table header fstcore version
+//  4                      | unsigned int       | FST_VERSION        // table header fst version
 //  4                      | int                | table flags        // binary table flags
 //  8                      |                    | free bytes         // possible future use
-//  4                      | unsigned int       | FST_VERSION_MAX    // minimum fstcore version required
+//  4                      | unsigned int       | FST_VERSION_MAX    // minimum fst version required
 //  4                      | int                | nrOfCols           // total number of columns in primary chunkset
 //  8                      | unsigned long long | primaryChunkSetLoc // reference to the table's primary chunkset
 //  4                      | int                | keyLength          // number of keys in table
@@ -64,7 +64,7 @@ using namespace std;
 //
 //  8                      | unsigned long long | hash value         // hash of key index vector (if present)
 //  4 * keyLength          | int                | keyColPos          // key column indexes in the first horizontal chunk
-//  ?                      | int                | free bytes         // possibly free bytes (for 8-byte allignment)
+//  4 * (keyLength % 2)    | int                | free bytes         // free bytes (for 8-byte allignment)
 
 // Chunkset header [node C, free leaf of A or other chunkset header] [size: 80 + 8 * nrOfCols]
 //
@@ -85,13 +85,16 @@ using namespace std;
 //  2 * nrOfCols           | unsigned short int | colBaseTypes       // column base types
 //  2 * nrOfCols           | unsigned short int | colScales          // column scales (pico, nano, micro, milli, kilo, mega, giga, tera etc.)
 
-// Column names [leaf to C]  [size: 24 + x]
+// Column names header [leaf to C]  [size: 24]
 //
 //  8                      | unsigned long long | hash value         // hash of column names header
 //  4                      | unsigned int       | FST_VERSION
 //  4                      | int                | colNames flags     // binary horizontal chunk flags
 //  8                      |                    | free bytes         // possible future use
-//  x                      | char               | colNames           // column names (internally hashed)
+
+// Column names header [leaf to C]  [size: x]
+//
+//  x                      | char               | colNames           // column names
 
 // Chunk index [node D, leaf of C] [size: 96]
 //
@@ -211,18 +214,12 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   const int nrOfCols =  fstTable.NrOfColumns();  // number of columns in table
   const int keyLength = fstTable.NrOfKeys();  // number of key columns in table
 
-  if (nrOfCols == 0)
-  {
-    throw(runtime_error("Your dataset needs at least one column."));
-  }
-
-
-  const unsigned long long tableHeaderSize    = TABLE_META_SIZE;
+  const unsigned long long tableHeaderSize = TABLE_META_SIZE;
   unsigned long long keyIndexHeaderSize = 0;
 
   if (keyLength != 0)
   {
-    // size of key index vector and hash and a possible allignment correction
+    // size of key index vector and hash and a possible alignment correction
     keyIndexHeaderSize = (keyLength % 2) * 4 + 4 * (keyLength + 2);
   }
 
@@ -415,6 +412,8 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   // Row and column meta data
   myfile.write(chunkIndex, chunkIndexSize);   // file positions of column data
 
+  // update chunk position data
+  *p_chunkPos = (unsigned long long)(myfile.tellp()) - 8 * nrOfCols - DATA_INDEX_SIZE;
 
   // column data
   for (int colNr = 0; colNr < nrOfCols; ++colNr)
@@ -507,9 +506,6 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
         throw(runtime_error("Unknown type found in column."));
     }
   }
-
-  // update chunk position data
-  *p_chunkPos = positionData[0] - 8 * nrOfCols - DATA_INDEX_SIZE;
 
   // Calculate header hashes
   *p_chunksetHash = XXH64(&metaDataWriteBlock[tableHeaderSize + keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
