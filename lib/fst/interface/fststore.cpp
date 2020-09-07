@@ -149,7 +149,7 @@ inline unsigned int ReadHeader(ifstream &myfile, int &keyLength, int &nrOfColsFi
     throw(runtime_error(FSTERROR_ERROR_OPEN_READ));
   }
 
-  unsigned long long* p_headerHash         = reinterpret_cast<unsigned long long*>(tableMeta);
+  uint64_t* p_headerHash                   = reinterpret_cast<uint64_t*>(tableMeta);
   //unsigned int* p_tableVersion           = reinterpret_cast<unsigned int*>(&tableMeta[8]);
   //int* p_tableFlags                      = reinterpret_cast<int*>(&tableMeta[12]);
   //unsigned long long* p_freeBytes1       = reinterpret_cast<unsigned long long*>(&tableMeta[16]);
@@ -160,7 +160,7 @@ inline unsigned int ReadHeader(ifstream &myfile, int &keyLength, int &nrOfColsFi
   //char* p_freeBytes                      = reinterpret_cast<char*>(&tableMeta[44]);
 
   // check header hash
-  const unsigned long long hHash = XXH64(&tableMeta[8], TABLE_META_SIZE - 8, FST_HASH_SEED);  // skip first 8 bytes (hash value itself)
+  const uint64_t hHash = XXH64(&tableMeta[8], TABLE_META_SIZE - 8, FST_HASH_SEED);  // skip first 8 bytes (hash value itself)
 
   if (hHash != *p_headerHash)
   {
