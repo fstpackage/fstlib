@@ -278,7 +278,7 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
 
   // Column names [leaf to C]  [size: 24 + x]
 
-  offset = offset + chunksetHeaderSize;
+  offset = offset + (uint32_t) chunksetHeaderSize;
   unsigned long long* p_colNamesHash      = reinterpret_cast<unsigned long long*>(&metaDataWriteBlock[offset]);
   unsigned int* p_colNamesVersion         = reinterpret_cast<unsigned int*>(&metaDataWriteBlock[offset + 8]);
   int* p_colNamesFlags                    = reinterpret_cast<int*>(&metaDataWriteBlock[offset + 12]);
@@ -633,7 +633,7 @@ void FstStore::fstMeta(IColumnFactory* columnFactory, IStringColumn* col_names)
 }
 
 
-void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, const long long startRow, const long long endRow,
+void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, const int64_t startRow, const int64_t endRow,
   IColumnFactory* columnFactory, vector<int> &keyIndex, IStringArray* selectedCols, IStringColumn* col_names)
 {
   // fst file stream using a stack buffer

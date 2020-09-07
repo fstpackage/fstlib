@@ -60,7 +60,7 @@ class FstStore
 
     void fstMeta(IColumnFactory* columnFactory, IStringColumn* col_names);
 
-    void fstRead(IFstTable &tableReader, IStringArray* columnSelection, long long startRow, long long endRow,
+    void fstRead(IFstTable &tableReader, IStringArray* columnSelection, int64_t startRow, int64_t endRow,
       IColumnFactory* columnFactory, std::vector<int> &keyIndex, IStringArray* selectedCols, IStringColumn* col_names);
 };
 
