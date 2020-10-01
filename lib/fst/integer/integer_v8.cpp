@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -43,7 +37,7 @@ void fdsWriteIntVec_v8(ofstream &myfile, int* integerVector, unsigned long long 
   if (compression <= 50)  // low compression: linear mix of uncompressed and LZ4_SHUF
   {
     Compressor* compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
-    StreamCompressor* streamCompressor = new StreamLinearCompressor(compress1, 2 * compression);
+    StreamCompressor* streamCompressor = new StreamLinearCompressor(compress1, 2.0F * compression);
 
     streamCompressor->CompressBufferSize(blockSize);
     fdsStreamcompressed_v2(myfile, reinterpret_cast<char*>(integerVector), nrOfRows, 4, streamCompressor, BLOCKSIZE_INT, annotation, hasAnnotation);
@@ -55,7 +49,7 @@ void fdsWriteIntVec_v8(ofstream &myfile, int* integerVector, unsigned long long 
 
   Compressor* compress1 = new SingleCompressor(CompAlgo::LZ4_SHUF4, 0);
   Compressor* compress2 = new SingleCompressor(CompAlgo::ZSTD_SHUF4, 2 * (compression - 50));
-  StreamCompressor* streamCompressor = new StreamCompositeCompressor(compress1, compress2, 2 * (compression - 50));
+  StreamCompressor* streamCompressor = new StreamCompositeCompressor(compress1, compress2, 2.0f * (compression - 50));
   streamCompressor->CompressBufferSize(blockSize);
   fdsStreamcompressed_v2(myfile, reinterpret_cast<char*>(integerVector), nrOfRows, 4, streamCompressor, BLOCKSIZE_INT, annotation, hasAnnotation);
 

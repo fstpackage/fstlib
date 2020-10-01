@@ -16,11 +16,11 @@ void StringColumn::AllocateVec(uint64_t vecLength)
 }
 
 void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64_t endElem,
-	uint64_t vecOffset, unsigned int* sizeMeta, char* buf)
+	uint64_t vecOffset, uint32_t* sizeMeta, char* buf)
 {
-	unsigned int nrOfNAInts = 1 + nrOfElements / 32;  // last bit is NA flag
-	unsigned int* bitsNA = &sizeMeta[nrOfElements];
-	unsigned int pos = 0;
+	uint32_t nrOfNAInts = 1 + nrOfElements / 32;  // last bit is NA flag
+	uint32_t* bitsNA = &sizeMeta[nrOfElements];
+	uint32_t pos = 0;
 
 	if (startElem != 0)
 	{
@@ -28,12 +28,12 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 	}
 
 	// Test NA flag TODO: set as first flag and remove parameter nrOfNAInts
-	unsigned int flagNA = bitsNA[nrOfNAInts - 1] & (1 << (nrOfElements % 32));
+	uint32_t flagNA = bitsNA[nrOfNAInts - 1] & (1 << (nrOfElements % 32));
 	if (flagNA == 0)  // no NA's in vector
 	{
-		for (unsigned long long blockElem = startElem; blockElem <= endElem; ++blockElem)
+		for (uint64_t blockElem = startElem; blockElem <= endElem; ++blockElem)
 		{
-			unsigned int newPos = sizeMeta[blockElem];
+			uint32_t newPos = sizeMeta[blockElem];
 			string str(buf + pos, newPos - pos);
 			(*shared_data->StrVec())[vecOffset + blockElem - startElem] = str;
 			pos = newPos;  // update to new string offset
@@ -44,17 +44,17 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 
 	// We process the datablock in cycles of 32 strings. This minimizes the impact of NA testing for vectors with a small number of NA's
 
-	unsigned long long startCycle = startElem / 32;
-	unsigned long long endCycle = endElem / 32;
-	unsigned int cycleNAs = bitsNA[startCycle];
+	uint64_t startCycle = startElem / 32;
+	uint64_t endCycle = endElem / 32;
+	uint32_t cycleNAs = bitsNA[startCycle];
 
 	// A single 32 string cycle
 
 	if (startCycle == endCycle)
 	{
-		for (unsigned long long blockElem = startElem; blockElem <= endElem; ++blockElem)
+		for (uint64_t blockElem = startElem; blockElem <= endElem; ++blockElem)
 		{
-			unsigned int bitMask = 1 << (blockElem % 32);
+			uint32_t bitMask = 1 << (blockElem % 32);
 
 			if ((cycleNAs & bitMask) != 0)  // set string to NA
 			{
@@ -65,7 +65,7 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 
 			// Get string from data stream
 
-			unsigned int newPos = sizeMeta[blockElem];
+			uint32_t newPos = sizeMeta[blockElem];
 
 			string str(buf + pos, newPos - pos);
 			(*shared_data->StrVec())[vecOffset + blockElem - startElem] = str;
@@ -77,10 +77,10 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 
 	// Get possibly partial first cycle
 
-	unsigned int firstCylceEnd = startCycle * 32 + 31;
-	for (unsigned long long blockElem = startElem; blockElem <= firstCylceEnd; ++blockElem)
+	uint32_t firstCylceEnd = startCycle * 32 + 31;
+	for (uint64_t blockElem = startElem; blockElem <= firstCylceEnd; ++blockElem)
 	{
-		unsigned int bitMask = 1 << (blockElem % 32);
+		uint32_t bitMask = 1 << (blockElem % 32);
 
 		if ((cycleNAs & bitMask) != 0)  // set string to NA
 		{
@@ -91,7 +91,7 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 
 		// Get string from data stream
 
-		unsigned int newPos = sizeMeta[blockElem];
+		uint32_t newPos = sizeMeta[blockElem];
 
 		string str(buf + pos, newPos - pos);
 		(*shared_data->StrVec())[vecOffset + blockElem - startElem] = str;
@@ -100,16 +100,16 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 
 	// Get all but last cycle with fast NA test
 
-	for (unsigned int cycle = startCycle + 1; cycle != endCycle; ++cycle)
+	for (uint32_t cycle = startCycle + 1; cycle != endCycle; ++cycle)
 	{
-		unsigned int cycleNAs = bitsNA[cycle];
-		unsigned int middleCycleEnd = cycle * 32 + 32;
+		uint32_t cycleNAs = bitsNA[cycle];
+		uint32_t middleCycleEnd = cycle * 32 + 32;
 
 		if (cycleNAs == 0)  // no NA's
 		{
-			for (unsigned int blockElem = cycle * 32; blockElem != middleCycleEnd; ++blockElem)
+			for (uint32_t blockElem = cycle * 32; blockElem != middleCycleEnd; ++blockElem)
 			{
-				unsigned int newPos = sizeMeta[blockElem];
+				uint32_t newPos = sizeMeta[blockElem];
 
 				string str(buf + pos, newPos - pos);
 				(*shared_data->StrVec())[vecOffset + blockElem - startElem] = str;
@@ -120,10 +120,10 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 
 		// Cycle contains one or more NA's
 
-		for (unsigned int blockElem = cycle * 32; blockElem != middleCycleEnd; ++blockElem)
+		for (uint32_t blockElem = cycle * 32; blockElem != middleCycleEnd; ++blockElem)
 		{
-			unsigned int bitMask = 1 << (blockElem % 32);
-			unsigned int newPos = sizeMeta[blockElem];
+			uint32_t bitMask = 1 << (blockElem % 32);
+			uint32_t newPos = sizeMeta[blockElem];
 
 			if ((cycleNAs & bitMask) != 0)  // set string to NA
 			{
@@ -145,10 +145,10 @@ void StringColumn::BufferToVec(uint64_t nrOfElements, uint64_t startElem, uint64
 	cycleNAs = bitsNA[endCycle];
 
 	++endElem;
-	for (unsigned int blockElem = endCycle * 32; blockElem != endElem; ++blockElem)
+	for (uint32_t blockElem = endCycle * 32; blockElem != endElem; ++blockElem)
 	{
-		unsigned int bitMask = 1 << (blockElem % 32);
-		unsigned int newPos = sizeMeta[blockElem];
+		uint32_t bitMask = 1 << (blockElem % 32);
+		uint32_t newPos = sizeMeta[blockElem];
 
 		if ((cycleNAs & bitMask) != 0)  // set string to NA
 		{

@@ -182,3 +182,17 @@ TEST_F(SpecialTablesTest, ZeroRowsDouble)
 	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows15.fst"), 0);
 	ReadWriteTester::WriteReadSingleColumns(fstTable, GetFilePath("zero_rows16.fst"), 50);
 }
+
+
+TEST_F(SpecialTablesTest, ZeroColumns)
+{
+	int nrOfRows = 0;
+	FstTable fstTable(nrOfRows);
+	fstTable.InitTable(0, nrOfRows);
+
+	vector<std::string> colNames{};
+	fstTable.SetColumnNames(colNames);
+
+	ReadWriteTester::WriteReadFullTable(fstTable, GetFilePath("zero_rows15.fst"), 0);
+	ReadWriteTester::WriteReadFullTable(fstTable, GetFilePath("zero_rows16.fst"), 50);
+}

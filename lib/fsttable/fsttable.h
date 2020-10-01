@@ -175,7 +175,7 @@ class FactorVector : public DestructableObject
 {
 	int* data = nullptr;
 	StringColumn* levels = nullptr;
-	unsigned long long length;
+	uint64_t length;
 
 public:
 	FactorVector(uint64_t length)
@@ -570,7 +570,7 @@ public:
 
 		memset(naInts, 0, nrOfNAInts * 4);  // clear NA bit metadata block (neccessary?)
 
-		for (unsigned long long count = startCount; count != endCount; ++count)
+		for (uint64_t count = startCount; count != endCount; ++count)
 		{
 			std::string strElem = (*strVecP)[count];
 
@@ -615,7 +615,7 @@ public:
 			activeBuf = heapBuf;
 		}
 
-		for (unsigned long long count = startCount; count < endCount; ++count)
+		for (uint64_t count = startCount; count < endCount; ++count)
 		{
 			const char* str = (*strVecP)[count].c_str();
 			pos = strSizes[++sizeCount];
@@ -641,7 +641,7 @@ class FstTable : public IFstTable
 	std::vector<std::string>* colAnnotations = nullptr;
 	std::vector<std::string>* colNames = nullptr;
 	std::vector<short int>* colScales = nullptr;
-	unsigned long long nrOfRows;
+	uint64_t nrOfRows;
 
 public:
 	FstTable()
@@ -649,7 +649,7 @@ public:
 		this->nrOfRows = 0;
 	}
 
-	FstTable(unsigned long long nrOfRows)
+	FstTable(uint64_t nrOfRows)
 	{
 		this->nrOfRows = nrOfRows;
 	}
@@ -664,7 +664,7 @@ public:
 	  delete this->colScales;
 	}
 
-	FstTable* SubSet(std::vector<std::string> &columnNames, unsigned long long startRow, unsigned long long endRow) const
+	FstTable* SubSet(std::vector<std::string> &columnNames, uint64_t startRow, uint64_t endRow) const
 	{
 		FstTable* subset = new FstTable();
 		subset->InitTable(static_cast<uint32_t>(columnNames.size()), 1 + endRow - startRow);
@@ -738,7 +738,7 @@ public:
 		}
 	}
 
-	void InitTable(uint32_t nrOfCols, unsigned long long nrOfRows)
+	void InitTable(uint32_t nrOfCols, uint64_t nrOfRows)
 	{
 		if (this->columns != nullptr)
 		{
@@ -818,7 +818,7 @@ public:
     (*columnTypes)[colNr] = FstColumnType::DOUBLE_64;
   }
 
-	ByteBlockVectorAdapter* add_byte_block_column(unsigned col_nr)
+	ByteBlockVectorAdapter* add_byte_block_column(uint32_t col_nr)
   {
 		auto byte_block = new ByteBlockVectorAdapter(this->NrOfRows());
 
@@ -953,7 +953,7 @@ public:
 		return (uint32_t) columnTypes->size();
 	}
 
-	unsigned long long NrOfRows()
+	uint64_t NrOfRows()
 	{
 		return nrOfRows;
 	}
