@@ -4,6 +4,7 @@ set(testfst_SRCS
 	byte.cpp
 	date.cpp
 	factors.cpp
+	byteblocktest.cpp
 	fstcompress.cpp
 	fstcoretest.cpp
 	fstreadtest.cpp
@@ -15,6 +16,7 @@ set(testfst_SRCS
 	previousversion.cpp
 	scaletest.cpp
 	SetThreads.cpp
+	special_tables.cpp
 )
 
 # create test executable

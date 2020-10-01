@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -44,7 +38,7 @@ void fdsWriteByteVec_v12(ofstream& myfile, char* byteVector, unsigned long long 
   {
     Compressor* compress1 = new SingleCompressor(CompAlgo::LZ4, 0);
 
-    StreamCompressor* streamCompressor = new StreamLinearCompressor(compress1, 2 * compression);
+    StreamCompressor* streamCompressor = new StreamLinearCompressor(compress1, 2.0f * compression);
 
     streamCompressor->CompressBufferSize(blockSize);
     fdsStreamcompressed_v2(myfile, byteVector, nrOfRows, 1, streamCompressor, BLOCKSIZE_BYTE, annotation, hasAnnotation);
@@ -56,7 +50,7 @@ void fdsWriteByteVec_v12(ofstream& myfile, char* byteVector, unsigned long long 
 
   Compressor* compress1 = new SingleCompressor(CompAlgo::LZ4, 0);
   Compressor* compress2 = new SingleCompressor(CompAlgo::ZSTD, 0);
-  StreamCompressor* streamCompressor = new StreamCompositeCompressor(compress1, compress2, 2 * (compression - 50));
+  StreamCompressor* streamCompressor = new StreamCompositeCompressor(compress1, compress2, 2.0F * (compression - 50));
   streamCompressor->CompressBufferSize(blockSize);
   fdsStreamcompressed_v2(myfile, byteVector, nrOfRows, 1, streamCompressor, BLOCKSIZE_BYTE, annotation, hasAnnotation);
 

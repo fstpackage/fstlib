@@ -25,9 +25,9 @@
  */
 
 /*- Compiler specifics -*/
-#ifdef __clang__
-#pragma clang diagnostic ignored "-Wshorten-64-to-32"
-#endif
+//#ifdef __clang__
+//#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+//#endif
 
 #if defined(_MSC_VER)
 #  pragma warning(disable : 4244)

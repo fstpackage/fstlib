@@ -8,6 +8,7 @@ set(libfst_SRCS
 	logical/logical_v10.cpp
 	integer/integer_v8.cpp
 	byte/byte_v12.cpp
+	byteblock/byteblock_v13.cpp
 	double/double_v9.cpp
 	character/character_v6.cpp
 	factor/factor_v7.cpp

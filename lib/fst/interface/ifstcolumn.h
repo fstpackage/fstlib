@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -33,19 +27,30 @@
 // Column scaling in power of 10
 // Applicable to INT_32, DOUBLE_64 and INT_64 type.
 // Only add to the end to support previous format versions
-#define SCALE_PICO    -12
-#define SCALE_NANO     -9
-#define SCALE_MICRO    -6
-#define SCALE_MILLI    -3
-#define SCALE_UNITY     0
-#define SCALE_KILO      3
-#define SCALE_MEGA      6
-#define SCALE_GIGA      9
-#define SCALE_TERA     12
+#define SCALE_PICO    (-12)
+#define SCALE_NANO     (-9)
+#define SCALE_MICRO    (-6)
+#define SCALE_MILLI    (-3)
+#define SCALE_UNITY       0
+#define SCALE_KILO        3
+#define SCALE_MEGA        6
+#define SCALE_GIGA        9
+#define SCALE_TERA       12
 
 
 // Column types available in fst
 // Only add to the end to support previous format versions
+// This type translates to a type number in the fst format:
+//
+// CHARACTER  | 6
+// FACTOR,    | 7
+// INT_32,    | 8
+// DOUBLE_64  | 9
+// BOOL_2     | 10
+// INT_64     | 11
+// BYTE       | 12
+// BYTE_BLOCK | 13
+//
 enum FstColumnType
 {
 	UNKNOWN = 1,
@@ -55,7 +60,8 @@ enum FstColumnType
 	DOUBLE_64,    // 64-bit double vector
 	BOOL_2,       // 2-bit boolean value (00 = false, 01 = true and 10 = NA)
 	INT_64,       // 64-bit signed integer vector
-	BYTE          // byte vector
+	BYTE,         // byte vector
+    BYTE_BLOCK    // vector of custom sized byte blocks
 };
 
 
@@ -108,7 +114,6 @@ enum FstTimeScale
 
 
 // The abstract column and array interfaces function as a bridge between the actual data and fst
-
 
 class IStringArray
 {

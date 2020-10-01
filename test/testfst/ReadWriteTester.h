@@ -10,6 +10,7 @@
 
 #include <fsttable.h>
 #include <columnfactory.h>
+#include <vector>
 
 class ReadWriteTester
 {
@@ -38,19 +39,27 @@ public:
 		return res;
 	}
 
-	static int CompareStringVectors(vector<std::string>* stringVector1, vector<std::string>* stringVector2, int from, int size)
+	static int CompareStringVectors(vector<std::string>* stringVector1, vector<std::string>* stringVector2, size_t from, size_t size)
 	{
 		if (size == 0) return 0;
 
-		vector<std::string>::iterator strIt2 = stringVector2->begin() + from;
-		for (vector<std::string>::iterator strIt = stringVector1->begin(); strIt != stringVector1->end(); ++strIt)
+		auto strIt2 = stringVector2->begin() + from;
+		for (auto strIt = stringVector1->begin(); strIt != stringVector1->end(); ++strIt)
 		{
-			int res = strIt->compare(*strIt2);
+			const int res = strIt->compare(*strIt2);
 			if (res != 0) return res;
 			++strIt2;
 		}
 
 		return 0;
+	}
+
+	static bool CompareLogicalVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
+	{
+		IntVector* intVecRead = static_cast<IntVector*>(&(*columnRead));
+		IntVector* intVecOrig = static_cast<IntVector*>(&(*columnOrig));
+
+		return std::memcmp(intVecRead->Data(), &(intVecOrig->Data()[from]), 4 * size) == 0;
 	}
 
 	static bool CompareIntVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
@@ -65,6 +74,14 @@ public:
 		//std::memcpy(intView2.data(), &(intVecOrig->Data()[from]), 4 * size);
 
 		return std::memcmp(intVecRead->Data(), &(intVecOrig->Data()[from]), 4 * size) == 0;
+	}
+
+	static bool CompareDoubleVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
+	{
+		DoubleVector* doubleVecRead = static_cast<DoubleVector*>(&(*columnRead));
+		DoubleVector* doubleVecOrig = static_cast<DoubleVector*>(&(*columnOrig));
+
+		return std::memcmp(doubleVecRead->Data(), &(doubleVecOrig->Data()[from]), 8 * size) == 0;
 	}
 
 	static bool CompareByteVecs(std::shared_ptr<DestructableObject> columnRead, std::shared_ptr<DestructableObject> columnOrig, unsigned long long from, unsigned long long size)
@@ -101,6 +118,11 @@ public:
 
 		switch (type)
 		{
+		case FstColumnType::BOOL_2: {
+				res = CompareLogicalVecs(columnRead, columnOrig, from, size);
+				break;
+			}
+
 			case FstColumnType::INT_32:			{
 				res = CompareIntVecs(columnRead, columnOrig, from, size);
 				break;
@@ -112,6 +134,11 @@ public:
 				break;
 			}
 
+			case FstColumnType::DOUBLE_64: {
+				res = CompareDoubleVecs(columnRead, columnOrig, from, size);
+				break;
+			}
+
 			case FstColumnType::INT_64: {
 				res = CompareLongVecs(columnRead, columnOrig, from, size);
 				break;
@@ -119,8 +146,8 @@ public:
 
 			case FstColumnType::FACTOR:
 			{
-				FactorVector* factVecRead = static_cast<FactorVector*>(&(*columnRead));
-				FactorVector* factVecOrig = static_cast<FactorVector*>(&(*columnOrig));
+				auto factVecRead = static_cast<FactorVector*>(&(*columnRead));
+				auto factVecOrig = static_cast<FactorVector*>(&(*columnOrig));
 
 				int res1 = std::memcmp(factVecRead->Data(), &(factVecOrig->Data()[from]), 4 * size);
 				int res2 = CompareStringVectors(factVecRead->Levels()->StrVector()->StrVec(), factVecOrig->Levels()->StrVector()->StrVec(), 0, factVecRead->Levels()->StrVector()->StrVec()->size());
@@ -132,8 +159,8 @@ public:
 
 			case FstColumnType::CHARACTER:
 			{
-				StringVector* strVecRead = static_cast<StringVector*>(&(*columnRead));
-				StringVector* strVecOrig = static_cast<StringVector*>(&(*columnOrig));
+				auto strVecRead = static_cast<StringVector*>(&(*columnRead));
+				auto strVecOrig = static_cast<StringVector*>(&(*columnOrig));
 
 				int res2 = CompareStringVectors(strVecRead->StrVec(), strVecOrig->StrVec(), from, size);
 
@@ -152,8 +179,8 @@ public:
 	}
 
 	// from parameter is one-based
-	static void CompareColumns(int nrOfRows, FstTable &subSet, StringArray &selectedCols, FstTable &tableRead,
-    unsigned long long from = 1, unsigned long long size = -1)
+	static void CompareColumns(unsigned long long nrOfRows, FstTable &subSet, StringArray &selectedCols, FstTable &tableRead,
+	    unsigned long long from = 1, unsigned long long size = -1)
 	{
 		if (size == -1) size = 1 + nrOfRows - from;
 
@@ -173,7 +200,7 @@ public:
 
 		EXPECT_EQ(selectedCols.GetStringElement(0), resColName2);
 		EXPECT_EQ(type1, type2);
-    EXPECT_EQ(scale1, scale2);
+        EXPECT_EQ(scale1, scale2);
 
 		bool res = CompareColVecs(column1, column2, type1, from - 1, size);
 		EXPECT_TRUE(res);
@@ -182,21 +209,21 @@ public:
 	static void WriteReadSingleColumns(FstTable &fstTable, const std::string fileName, const int compression)
 	{
 		// Get column names
-		std::vector<std::string>* colNames = fstTable.ColumnNames();
+		vector<std::string>* colNames = fstTable.ColumnNames();
 		ColumnFactory columnFactory;
 
 		for (std::vector<std::string>::iterator colNameIt = colNames->begin(); colNameIt != colNames->end(); ++colNameIt)
 		{
 			// Subset table
 			std::vector<std::string> colName = { *colNameIt };
-			unsigned int nrOfRows = fstTable.NrOfRows();
+			unsigned long long nrOfRows = fstTable.NrOfRows();
 			FstTable* subSet = fstTable.SubSet(colName, 1, nrOfRows);
 
 			// Write single column table to disk
 			FstStore fstStore(fileName);
 			fstStore.fstWrite(*subSet, compression);
 
-			// Read single column table from disk
+			//// Read single column table from disk
 			std::vector<int> keyIndex;
 			StringArray selectedCols;
 			FstTable tableRead;
@@ -214,14 +241,29 @@ public:
 				FstTable tableRead2;
 				std::unique_ptr<StringColumn> col_names(new StringColumn());
 				fstStore.fstRead(tableRead2, nullptr, nrOfRows - 5, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
-				CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead2, nrOfRows - 5, -1);
+				CompareColumns(fstTable.NrOfRows(), *subSet, selectedCols, tableRead2, nrOfRows - 5, static_cast<unsigned long long>(-1));
 			}
 
 			// Fix manual column name assignment!
-
-
 			delete subSet;
 		}
+	}
+
+	static void WriteReadFullTable(FstTable& table, const std::string file_name, const int compression)
+	{
+		ColumnFactory columnFactory;
+
+		// Get column names
+		FstStore fstStore(file_name);
+		fstStore.fstWrite(table, compression);
+
+		//// Read single column table from disk
+		std::vector<int> keyIndex;
+		StringArray selectedCols;
+		FstTable tableRead;
+
+		std::unique_ptr<StringColumn> col_names(new StringColumn());
+		fstStore.fstRead(tableRead, nullptr, 1, -1, &columnFactory, keyIndex, &selectedCols, &*col_names);
 	}
 
 	~ReadWriteTester()

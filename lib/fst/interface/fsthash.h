@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -54,7 +48,7 @@ public:
 	 * \param blockHash if true, use a multi-threaded blocked hash format (hash of hashes)
 	 * \return hash value of the input buffer
 	 */
-	unsigned long long HashBlob(unsigned char* blobSource, unsigned long long blobLength, bool blockHash = true) const
+	uint64_t HashBlob(unsigned char* blobSource, uint64_t blobLength, bool blockHash = true) const
 	{
 		return HashBlobSeed(blobSource, blobLength, FST_HASH_SEED, blockHash);
 	}
@@ -67,7 +61,7 @@ public:
   * \param blockHash if true, use a multi-threaded blocked hash format (hash of hashes)
 	* \return hash value of the input buffer
    */
-	unsigned long long HashBlobSeed(unsigned char* blobSource, unsigned long long blobLength, unsigned long long seed, bool blockHash = true) const
+	uint64_t HashBlobSeed(unsigned char* blobSource, uint64_t blobLength, uint64_t seed, bool blockHash = true) const
 	{
     if (!blockHash)
     {
@@ -83,11 +77,11 @@ public:
 		}
 
 		// block size to use for hashing has a lower bound for compression efficiency
-		unsigned long long minBlock = std::max(static_cast<unsigned long long>(HASH_SIZE),
+		uint64_t minBlock = std::max(static_cast<uint64_t>(HASH_SIZE),
 			1 + (blobLength - 1) / PREV_NR_OF_BLOCKS);
 
 		// And a higher bound for hasher compatability
-		unsigned int blockSize = static_cast<unsigned int>(std::min(minBlock, static_cast<unsigned long long>(INT_MAX)));
+		unsigned int blockSize = static_cast<unsigned int>(std::min(minBlock, static_cast<uint64_t>(INT_MAX)));
 
 		int nrOfBlocks = static_cast<int>(1 + (blobLength - 1) / blockSize);
 		nrOfThreads = std::min(nrOfThreads, nrOfBlocks);
@@ -95,7 +89,7 @@ public:
 		unsigned int lastBlockSize = 1 + (blobLength - 1) % blockSize;
 		float blocksPerThread = static_cast<float>(nrOfBlocks) / nrOfThreads;
 
-		unsigned long long* blockHashes = new unsigned long long[nrOfBlocks];
+		uint64_t* blockHashes = new uint64_t[nrOfBlocks];
 
 #pragma omp parallel num_threads(nrOfThreads)
 		{
@@ -132,7 +126,7 @@ public:
 
 		}  // end parallel region and join all threads
 
-    unsigned long long allBlockHash = blockHashes[0];
+    uint64_t allBlockHash = blockHashes[0];
 
     // combine multiple hashes
     if (nrOfBlocks > 1)

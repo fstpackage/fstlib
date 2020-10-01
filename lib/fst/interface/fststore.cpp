@@ -5,17 +5,11 @@
 
   This file is part of fstlib.
 
-  fstlib is free software: you can redistribute it and/or modify it under the
-  terms of the GNU Affero General Public License version 3 as published by the
-  Free Software Foundation.
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this file,
+  You can obtain one at https://mozilla.org/MPL/2.0/.
 
-  fstlib is distributed in the hope that it will be useful, but WITHOUT ANY
-  WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
-  A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
-  details.
-
-  You should have received a copy of the GNU Affero General Public License
-  along with fstlib. If not, see <http://www.gnu.org/licenses/>.
+  https://www.mozilla.org/en-US/MPL/2.0/FAQ/
 
   You can contact the author at:
   - fstlib source repository : https://github.com/fstpackage/fstlib
@@ -42,8 +36,10 @@
 #include <logical/logical_v10.h>
 #include <integer64/integer64_v11.h>
 #include <byte/byte_v12.h>
+#include <byteblock/byteblock_v13.h>
 
 #include <xxhash.h>
+#include "byteblock/byteblock_v13.h"
 
 using namespace std;
 
@@ -51,10 +47,10 @@ using namespace std;
 // Table header [node A] [size: 48]
 //
 //  8                      | unsigned long long | hash value         // hash of table header
-//  4                      | unsigned int       | FST_VERSION        // table header fstcore version
+//  4                      | unsigned int       | FST_VERSION        // table header fst version
 //  4                      | int                | table flags        // binary table flags
 //  8                      |                    | free bytes         // possible future use
-//  4                      | unsigned int       | FST_VERSION_MAX    // minimum fstcore version required
+//  4                      | unsigned int       | FST_VERSION_MAX    // minimum fst version required
 //  4                      | int                | nrOfCols           // total number of columns in primary chunkset
 //  8                      | unsigned long long | primaryChunkSetLoc // reference to the table's primary chunkset
 //  4                      | int                | keyLength          // number of keys in table
@@ -68,7 +64,7 @@ using namespace std;
 //
 //  8                      | unsigned long long | hash value         // hash of key index vector (if present)
 //  4 * keyLength          | int                | keyColPos          // key column indexes in the first horizontal chunk
-//  ?                      | int                | free bytes         // possibly free bytes (for 8-byte allignment)
+//  4 * (keyLength % 2)    | int                | free bytes         // free bytes (for 8-byte allignment)
 
 // Chunkset header [node C, free leaf of A or other chunkset header] [size: 80 + 8 * nrOfCols]
 //
@@ -89,13 +85,16 @@ using namespace std;
 //  2 * nrOfCols           | unsigned short int | colBaseTypes       // column base types
 //  2 * nrOfCols           | unsigned short int | colScales          // column scales (pico, nano, micro, milli, kilo, mega, giga, tera etc.)
 
-// Column names [leaf to C]  [size: 24 + x]
+// Column names header [leaf to C]  [size: 24]
 //
 //  8                      | unsigned long long | hash value         // hash of column names header
 //  4                      | unsigned int       | FST_VERSION
 //  4                      | int                | colNames flags     // binary horizontal chunk flags
 //  8                      |                    | free bytes         // possible future use
-//  x                      | char               | colNames           // column names (internally hashed)
+
+// Column names header [leaf to C]  [size: x]
+//
+//  x                      | char               | colNames           // column names
 
 // Chunk index [node D, leaf of C] [size: 96]
 //
@@ -150,7 +149,7 @@ inline unsigned int ReadHeader(ifstream &myfile, int &keyLength, int &nrOfColsFi
     throw(runtime_error(FSTERROR_ERROR_OPEN_READ));
   }
 
-  unsigned long long* p_headerHash         = reinterpret_cast<unsigned long long*>(tableMeta);
+  uint64_t* p_headerHash                   = reinterpret_cast<uint64_t*>(tableMeta);
   //unsigned int* p_tableVersion           = reinterpret_cast<unsigned int*>(&tableMeta[8]);
   //int* p_tableFlags                      = reinterpret_cast<int*>(&tableMeta[12]);
   //unsigned long long* p_freeBytes1       = reinterpret_cast<unsigned long long*>(&tableMeta[16]);
@@ -161,7 +160,7 @@ inline unsigned int ReadHeader(ifstream &myfile, int &keyLength, int &nrOfColsFi
   //char* p_freeBytes                      = reinterpret_cast<char*>(&tableMeta[44]);
 
   // check header hash
-  const unsigned long long hHash = XXH64(&tableMeta[8], TABLE_META_SIZE - 8, FST_HASH_SEED);  // skip first 8 bytes (hash value itself)
+  const uint64_t hHash = XXH64(&tableMeta[8], TABLE_META_SIZE - 8, FST_HASH_SEED);  // skip first 8 bytes (hash value itself)
 
   if (hHash != *p_headerHash)
   {
@@ -215,18 +214,12 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   const int nrOfCols =  fstTable.NrOfColumns();  // number of columns in table
   const int keyLength = fstTable.NrOfKeys();  // number of key columns in table
 
-  if (nrOfCols == 0)
-  {
-    throw(runtime_error("Your dataset needs at least one column."));
-  }
-
-
-  const unsigned long long tableHeaderSize    = TABLE_META_SIZE;
+  const unsigned long long tableHeaderSize = TABLE_META_SIZE;
   unsigned long long keyIndexHeaderSize = 0;
 
   if (keyLength != 0)
   {
-    // size of key index vector and hash and a possible allignment correction
+    // size of key index vector and hash and a possible alignment correction
     keyIndexHeaderSize = (keyLength % 2) * 4 + 4 * (keyLength + 2);
   }
 
@@ -285,7 +278,7 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
 
   // Column names [leaf to C]  [size: 24 + x]
 
-  offset = offset + chunksetHeaderSize;
+  offset = offset + (uint32_t) chunksetHeaderSize;
   unsigned long long* p_colNamesHash      = reinterpret_cast<unsigned long long*>(&metaDataWriteBlock[offset]);
   unsigned int* p_colNamesVersion         = reinterpret_cast<unsigned int*>(&metaDataWriteBlock[offset + 8]);
   int* p_colNamesFlags                    = reinterpret_cast<int*>(&metaDataWriteBlock[offset + 12]);
@@ -329,7 +322,7 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   *p_primChunksetIndex     = 0;
   *p_secChunksetIndex      = 0;
 
-  const unsigned long long nrOfRows = fstTable.NrOfRows();
+  const uint64_t nrOfRows = fstTable.NrOfRows();
   *p_nrOfRows                 = nrOfRows;
   *p_nrOfChunksetCols         = nrOfCols;
   *p_freeBytes4               = 0;
@@ -339,11 +332,6 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   *p_colNamesVersion       = FST_VERSION;
   *p_colNamesFlags         = 0;
   *p_freeBytes5            = 0;
-
-  if (nrOfRows == 0)
-  {
-    throw(runtime_error(FSTERROR_NO_DATA));
-  }
 
   // Create file buffer
   //const size_t bufsize = 4096;
@@ -424,6 +412,8 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   // Row and column meta data
   myfile.write(chunkIndex, chunkIndexSize);   // file positions of column data
 
+  // update chunk position data
+  *p_chunkPos = (unsigned long long)(myfile.tellp()) - 8 * nrOfCols - DATA_INDEX_SIZE;
 
   // column data
   for (int colNr = 0; colNr < nrOfCols; ++colNr)
@@ -503,14 +493,19 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
 		  break;
 	  }
 
-    default:
+    case FstColumnType::BYTE_BLOCK:
+    {
+        colTypes[colNr] = 13;
+        IByteBlockColumn* p_byte_block = fstTable.GetByteBlockWriter(colNr);
+        fdsWriteByteBlockVec_v13(myfile, p_byte_block, nrOfRows, static_cast<uint32_t>(compress));
+        break;
+    }
+
+	  default:
         myfile.close();
         throw(runtime_error("Unknown type found in column."));
     }
   }
-
-  // update chunk position data
-  *p_chunkPos = positionData[0] - 8 * nrOfCols - DATA_INDEX_SIZE;
 
   // Calculate header hashes
   *p_chunksetHash = XXH64(&metaDataWriteBlock[tableHeaderSize + keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
@@ -638,7 +633,7 @@ void FstStore::fstMeta(IColumnFactory* columnFactory, IStringColumn* col_names)
 }
 
 
-void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, const long long startRow, const long long endRow,
+void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, const int64_t startRow, const int64_t endRow,
   IColumnFactory* columnFactory, vector<int> &keyIndex, IStringArray* selectedCols, IStringColumn* col_names)
 {
   // fst file stream using a stack buffer
@@ -845,9 +840,9 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
 
   // Check range of selected rows
   const long long firstRow = startRow - 1;
-  const unsigned long long nrOfRows = *p_chunkRows;  // TODO: check for row numbers > INT_MAX !!!
+  const uint64_t nrOfRows = *p_chunkRows;  // TODO: check for row numbers > INT_MAX !!!
 
-  if (firstRow >= static_cast<long long>(nrOfRows) || firstRow < 0)
+  if (nrOfRows != 0 && (firstRow >= static_cast<long long>(nrOfRows) || firstRow < 0))
   {
     myfile.close();
 
@@ -859,8 +854,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
     throw(runtime_error("Row selection is out of range."));
   }
 
-  long long length = nrOfRows - firstRow;
-
+  long long length = max(static_cast<long long>(nrOfRows) - firstRow, 0LL);
 
   // Determine vector length
   if (endRow != -1)
@@ -871,7 +865,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
       throw(runtime_error("Incorrect row range specified."));
     }
 
-    length = min(endRow - firstRow, static_cast<long long>(nrOfRows) - firstRow);
+    length = max(min(endRow - firstRow, static_cast<long long>(nrOfRows) - firstRow), 0LL);
   }
 
   tableReader.InitTable(nrOfSelect, length);
@@ -886,7 +880,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
       throw(runtime_error("Column selection is out of range."));
     }
 
-    const unsigned long long pos = blockPos[colNr];
+    const uint64_t pos = blockPos[colNr];
     const short int scale = colScales[colNr];
 
     switch (colTypes[colNr])
@@ -897,7 +891,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
         std::unique_ptr<IStringColumn> stringColumnP(columnFactory->CreateStringColumn(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr])));
         IStringColumn* stringColumn = stringColumnP.get();
 
-        stringColumn->AllocateVec(static_cast<unsigned int>(length));
+        stringColumn->AllocateVec(static_cast<uint64_t>(length));
         tableReader.SetStringColumn(stringColumn, colSel);
 
         fdsReadCharVec_v6(myfile, stringColumn, pos, firstRow, length, nrOfRows);
@@ -971,10 +965,10 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
 	  case 11:
 	  {
       std::unique_ptr<IInt64Column> int64ColumP(columnFactory->CreateInt64Column(length, static_cast<FstColumnAttribute>(colAttributeTypes[colNr]), scale));
-	    IInt64Column* int64Column = int64ColumP.get();
-	    tableReader.SetInt64Column(int64Column, colSel);
-	    fdsReadInt64Vec_v11(myfile, int64Column->Data(), pos, firstRow, length, nrOfRows);
-	    break;
+      IInt64Column* int64Column = int64ColumP.get();
+      tableReader.SetInt64Column(int64Column, colSel);
+      fdsReadInt64Vec_v11(myfile, int64Column->Data(), pos, firstRow, static_cast<uint64_t>(length), nrOfRows);
+      break;
 	  }
 
 	  // byte vector
@@ -986,6 +980,15 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
 		  fdsReadByteVec_v12(myfile, byteColumn->Data(), pos, firstRow, length, nrOfRows);
 		  break;
 	  }
+
+    // byte block vector
+    case 13:
+    {
+      IByteBlockColumn* byte_block = tableReader.add_byte_block_column(colSel);
+
+      read_byte_block_vec_v13(myfile, byte_block, pos, firstRow, length, nrOfRows);
+      break;
+    }
 
     default:
       myfile.close();

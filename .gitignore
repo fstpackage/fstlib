@@ -1,3 +1,7 @@
 /.vs/*
 /build/*
 *.o
+/out/build
+/Folder.DotSettings.user
+/dev/
+*.json

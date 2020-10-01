@@ -15,17 +15,23 @@
   - fstlib source repository : https://github.com/fstpackage/fstlib
 */
 
-#ifndef INT64_V11_H
-#define INT64_V11_H
 
-// System libraries
-#include <ostream>
+#ifndef IBYTEBLOCKCOLUMN_H
+#define IBYTEBLOCKCOLUMN_H
+
+#include <memory>
+
+#include "ifstcolumn.h"
+
+class IByteBlockColumn
+{
+public:
+  uint64_t vecLength = 0;
+
+  virtual ~IByteBlockColumn() = default;
+
+  virtual void SetSizesAndPointers(const char** elements, uint64_t* sizes, uint64_t row_start, uint64_t block_size) = 0;
+};
 
 
-void fdsWriteInt64Vec_v11(std::ofstream &myfile, long long* int64Vector, unsigned long long nrOfRows, unsigned int compression,
-  std::string annotation, bool hasAnnotation);
-
-void fdsReadInt64Vec_v11(std::istream &myfile, long long* int64Vector, unsigned long long blockPos, unsigned long long startRow,
-  unsigned long long length, unsigned long long size);
-
-#endif // INT64_V11_H
+#endif  // IBYTEBLOCKCOLUMN_H
