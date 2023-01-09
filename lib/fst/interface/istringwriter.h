@@ -19,6 +19,9 @@
 #ifndef ISTRINGWRITER_H
 #define ISTRINGWRITER_H
 
+#include <cstdint>
+
+
 enum StringEncoding
 {
 	NATIVE = 0,
