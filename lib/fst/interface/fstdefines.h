@@ -25,7 +25,7 @@
 // Version of fst format
 #define FST_VERSION_MAJOR    0                  // for breaking interface changes
 #define FST_VERSION_MINOR    1                  // for new (non-breaking) interface capabilities
-#define FST_VERSION_RELEASE  7                  // for tweaks, bug-fixes, or development
+#define FST_VERSION_RELEASE  8                  // for tweaks, bug-fixes, or development
 
 // Note that the release version number can change without affecting read/write cycles
 #define FST_VERSION          (FST_VERSION_MAJOR * 256 + FST_VERSION_MINOR)

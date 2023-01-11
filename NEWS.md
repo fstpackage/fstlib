@@ -1,5 +1,21 @@
 
-# fstlib 0.1.6 (in development)
+# fstlib 0.1.8
+
+This release of fstlib brings updates of the LZ4 compression library and contains fixes for compiling with gcc13.
+
+## Library updates
+
+* LZ4 updated to version 1.9.4
+* ZSTD updated to version 1.4.4
+
+## Enhancements
+
+* Error on missing column outputs columns name
+* Allow 64-bit size for number of factor levels
+* Column factory uses 64 bit length values
+
+
+# fstlib 0.1.6
 
 ## License update
 
@@ -12,6 +28,7 @@ This allows for less restrictive use of the library, for example in comercial ap
 ## Library updates
 
 * Serialization of zero-row tables for all column types (#10)
+
 
 # fstlib 0.1.4
 
