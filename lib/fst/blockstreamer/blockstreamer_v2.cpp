@@ -20,6 +20,7 @@
 #include <cstring>
 #include <iostream>
 #include <algorithm>
+#include <cstdint>
 
 // Framework libraries
 #include <compression/compression.h>
