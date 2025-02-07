@@ -160,7 +160,7 @@ inline unsigned int ReadHeader(ifstream &myfile, int &keyLength, int &nrOfColsFi
   //char* p_freeBytes                      = reinterpret_cast<char*>(&tableMeta[44]);
 
   // check header hash
-  const uint64_t hHash = XXH64(&tableMeta[8], TABLE_META_SIZE - 8, FST_HASH_SEED);  // skip first 8 bytes (hash value itself)
+  const uint64_t hHash = ZSTD_XXH64(&tableMeta[8], TABLE_META_SIZE - 8, FST_HASH_SEED);  // skip first 8 bytes (hash value itself)
 
   if (hHash != *p_headerHash)
   {
@@ -303,14 +303,14 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   *primaryChunkSetLoc               = TABLE_META_SIZE + keyIndexHeaderSize;
   *p_keyLength                      = keyLength;
 
-  *p_headerHash = XXH64(&metaDataWriteBlock[8], tableHeaderSize - 8, FST_HASH_SEED);
+  *p_headerHash = ZSTD_XXH64(&metaDataWriteBlock[8], tableHeaderSize - 8, FST_HASH_SEED);
 
   // Set key index if present
 
   if (keyLength != 0)
   {
     fstTable.GetKeyColumns(keyColPos);
-    *p_keyIndexHash = XXH64(&metaDataWriteBlock[tableHeaderSize + 8], keyIndexHeaderSize - 8, FST_HASH_SEED);
+    *p_keyIndexHash = ZSTD_XXH64(&metaDataWriteBlock[tableHeaderSize + 8], keyIndexHeaderSize - 8, FST_HASH_SEED);
   }
 
   *p_chunksetHeaderVersion = FST_VERSION;
@@ -342,7 +342,7 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   //myfile.rdbuf()->pubsetbuf(nullptr, 0);
   //myfile.rdbuf()->pubsetbuf(buf, bufsize);  // set write buffer
 
-  *p_colNamesHash = XXH64(p_colNamesVersion, colNamesHeaderSize - 8, FST_HASH_SEED);
+  *p_colNamesHash = ZSTD_XXH64(p_colNamesVersion, colNamesHeaderSize - 8, FST_HASH_SEED);
 
 
   // Open file in binary mode
@@ -508,13 +508,13 @@ void FstStore::fstWrite(IFstTable &fstTable, const int compress) const
   }
 
   // Calculate header hashes
-  *p_chunksetHash = XXH64(&metaDataWriteBlock[tableHeaderSize + keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
-  *p_chunkIndexHash = XXH64(&chunkIndex[8], CHUNK_INDEX_SIZE - 8, FST_HASH_SEED);
+  *p_chunksetHash = ZSTD_XXH64(&metaDataWriteBlock[tableHeaderSize + keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
+  *p_chunkIndexHash = ZSTD_XXH64(&chunkIndex[8], CHUNK_INDEX_SIZE - 8, FST_HASH_SEED);
 
   myfile.seekp(0);
   myfile.write(metaDataWriteBlock, metaDataSize);  // table header
 
-  *p_chunkDataHash = XXH64(&chunkIndex[CHUNK_INDEX_SIZE + 8], chunkIndexSize - (CHUNK_INDEX_SIZE + 8), FST_HASH_SEED);
+  *p_chunkDataHash = ZSTD_XXH64(&chunkIndex[CHUNK_INDEX_SIZE + 8], chunkIndexSize - (CHUNK_INDEX_SIZE + 8), FST_HASH_SEED);
 
   myfile.seekp(*p_chunkPos - CHUNK_INDEX_SIZE);
   myfile.write(chunkIndex, chunkIndexSize);  // vertical chunkset index and positiondata
@@ -570,7 +570,7 @@ void FstStore::fstMeta(IColumnFactory* columnFactory, IStringColumn* col_names)
     keyColPos = reinterpret_cast<int*>(&metaDataBlock[8]);  // equals nullptr if there are no keys
 
     unsigned long long* p_keyIndexHash = reinterpret_cast<unsigned long long*>(metaDataBlock);
-    const unsigned long long hHash = XXH64(&metaDataBlock[8], keyIndexHeaderSize - 8, FST_HASH_SEED);
+    const unsigned long long hHash = ZSTD_XXH64(&metaDataBlock[8], keyIndexHeaderSize - 8, FST_HASH_SEED);
 
     if (*p_keyIndexHash != hHash)
     {
@@ -599,7 +599,7 @@ void FstStore::fstMeta(IColumnFactory* columnFactory, IStringColumn* col_names)
   colBaseTypes                            = reinterpret_cast<unsigned short int*>(&metaDataBlock[keyIndexHeaderSize + 80 + 4 * nrOfCols]);
   colScales                               = reinterpret_cast<unsigned short int*>(&metaDataBlock[keyIndexHeaderSize + 80 + 6 * nrOfCols]);
 
-  const unsigned long long chunksetHash = XXH64(&metaDataBlock[keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
+  const unsigned long long chunksetHash = ZSTD_XXH64(&metaDataBlock[keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
   if (*p_chunksetHash != chunksetHash)
   {
     myfile.close();
@@ -614,7 +614,7 @@ void FstStore::fstMeta(IColumnFactory* columnFactory, IStringColumn* col_names)
   //int* p_colNamesFlags = reinterpret_cast<int*>(&metaDataBlock[offset + 12]);
   //unsigned long long* p_freeBytes4 = reinterpret_cast<unsigned long long*>(&metaDataBlock[16]);
 
-  const unsigned long long colNamesHash = XXH64(&metaDataBlock[offset + 8], colNamesHeaderSize - 8, FST_HASH_SEED);
+  const unsigned long long colNamesHash = ZSTD_XXH64(&metaDataBlock[offset + 8], colNamesHeaderSize - 8, FST_HASH_SEED);
 
   if (*p_colNamesHash != colNamesHash)
   {
@@ -672,7 +672,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
   if (keyLength != 0)
   {
     unsigned long long* p_keyIndexHash = reinterpret_cast<unsigned long long*>(metaDataBlock);
-    const unsigned long long hHash = XXH64(&metaDataBlock[8], keyIndexHeaderSize - 8, FST_HASH_SEED);
+    const unsigned long long hHash = ZSTD_XXH64(&metaDataBlock[8], keyIndexHeaderSize - 8, FST_HASH_SEED);
 
     if (*p_keyIndexHash != hHash)
     {
@@ -703,7 +703,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
   colBaseTypes                            = reinterpret_cast<unsigned short int*>(&metaDataBlock[keyIndexHeaderSize + CHUNKSET_HEADER_SIZE + 4 * nrOfCols]);
   colScales                               = reinterpret_cast<unsigned short int*>(&metaDataBlock[keyIndexHeaderSize + CHUNKSET_HEADER_SIZE + 6 * nrOfCols]);
 
-  const unsigned long long chunksetHash = XXH64(&metaDataBlock[keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
+  const unsigned long long chunksetHash = ZSTD_XXH64(&metaDataBlock[keyIndexHeaderSize + 8], chunksetHeaderSize - 8, FST_HASH_SEED);
   if (*p_chunksetHash != chunksetHash)
   {
     myfile.close();
@@ -718,7 +718,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
   //int* p_colNamesFlags               = reinterpret_cast<int*>(&metaDataBlock[offset + 12]);
   //unsigned long long* p_freeBytes5   = reinterpret_cast<unsigned long long*>(&metaDataBlock[offset + 16]);
 
-  const unsigned long long colNamesHash = XXH64(&metaDataBlock[offset + 8], colNamesHeaderSize - 8, FST_HASH_SEED);
+  const unsigned long long colNamesHash = ZSTD_XXH64(&metaDataBlock[offset + 8], colNamesHeaderSize - 8, FST_HASH_SEED);
   if (*p_colNamesHash != colNamesHash)
   {
     myfile.close();
@@ -764,7 +764,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
 
   // Check chunk hashes
 
-  const unsigned long long chunkIndexHash = XXH64(&chunkIndex[8], CHUNK_INDEX_SIZE - 8, FST_HASH_SEED);
+  const unsigned long long chunkIndexHash = ZSTD_XXH64(&chunkIndex[8], CHUNK_INDEX_SIZE - 8, FST_HASH_SEED);
 
   if (*p_chunkIndexHash != chunkIndexHash)
   {
@@ -772,7 +772,7 @@ void FstStore::fstRead(IFstTable &tableReader, IStringArray* columnSelection, co
     throw(runtime_error(FSTERROR_DAMAGED_CHUNKINDEX));
   }
 
-  const unsigned long long chunkDataHash = XXH64(&chunkIndex[CHUNK_INDEX_SIZE + 8], chunkIndexSize - (CHUNK_INDEX_SIZE + 8), FST_HASH_SEED);
+  const unsigned long long chunkDataHash = ZSTD_XXH64(&chunkIndex[CHUNK_INDEX_SIZE + 8], chunkIndexSize - (CHUNK_INDEX_SIZE + 8), FST_HASH_SEED);
 
   if (*p_chunkDataHash != chunkDataHash)
   {

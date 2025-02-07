@@ -2,7 +2,6 @@
 # define code files
 set(liblz4_SRCS
     lz4.c
-	xxhash.c
 )
 
 # declare LZ4 library

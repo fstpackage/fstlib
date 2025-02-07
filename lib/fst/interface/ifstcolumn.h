@@ -20,6 +20,8 @@
 #define IFST_COLUMN_H
 
 #include <string>
+#include <cstdint>
+
 
 #include <interface/istringwriter.h>
 

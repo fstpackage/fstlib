@@ -185,7 +185,7 @@ public:
 			// Hash compression result
 			if (hash)
 			{
-				block_hashes[block] = XXH64(thread_buf + buf_pos, comp_size, FST_HASH_SEED);
+				block_hashes[block] = ZSTD_XXH64(thread_buf + buf_pos, comp_size, FST_HASH_SEED);
 			}
 
 			buf_pos += comp_size;
@@ -217,7 +217,7 @@ public:
           // Hash compression result
           if (hash)
           {
-            block_hashes[block] = XXH64(thread_buf + buf_pos, comp_size, FST_HASH_SEED);
+            block_hashes[block] =  ZSTD_XXH64(thread_buf + buf_pos, comp_size, FST_HASH_SEED);
           }
 
           buf_pos += comp_size;
@@ -234,7 +234,7 @@ public:
         // Hash compression result
         if (hash)
         {
-          block_hashes[next_block_nr] = XXH64(thread_buf + buf_pos, comp_size, FST_HASH_SEED);
+          block_hashes[next_block_nr] =  ZSTD_XXH64(thread_buf + buf_pos, comp_size, FST_HASH_SEED);
         }
       }
     } // end parallel region and join all threads
@@ -245,7 +245,7 @@ public:
     // calculate hask of block hashes
     if (hash)
     {
-      allBlockHash = XXH64(block_hashes, nr_of_blocks * 8, FST_HASH_SEED);
+      allBlockHash =  ZSTD_XXH64(block_hashes, nr_of_blocks * 8, FST_HASH_SEED);
     }
 
     unsigned long long tot_comp_size = 0;
@@ -419,7 +419,7 @@ public:
             const unsigned long long blockStart = blockOffsets[block];
             const unsigned long long blockEnd = blockOffsets[block + 1];
 
-            blockHashes[block] = XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
+            blockHashes[block] =  ZSTD_XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
           }
         }
 
@@ -434,18 +434,18 @@ public:
             const unsigned long long blockStart = blockOffsets[block];
             const unsigned long long blockEnd = blockOffsets[block + 1];
 
-            blockHashes[block] = XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
+            blockHashes[block] =  ZSTD_XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
           }
 
           // last block
           const unsigned long long blockStart = blockOffsets[toBlock - 1];
           const unsigned long long blockEnd = blockOffsets[toBlock];
 
-          blockHashes[toBlock - 1] = XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
+          blockHashes[toBlock - 1] =  ZSTD_XXH64(blobSource + blockStart, blockEnd - blockStart, FST_HASH_SEED);
         }
       }
 
-      const unsigned long long totHashes = XXH64(blockHashes, 8 * nrOfBlocks, FST_HASH_SEED);
+      const unsigned long long totHashes =  ZSTD_XXH64(blockHashes, 8 * nrOfBlocks, FST_HASH_SEED);
 
       if (totHashes != *hashResult)
       {

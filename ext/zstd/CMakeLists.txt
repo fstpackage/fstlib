@@ -1,11 +1,12 @@
 # define code files
 set(libzstd_SRCS
+	common/debug.c
 	common/entropy_common.c
 	common/error_private.c
 	common/fse_decompress.c
-	common/zstd_common.c
 	common/pool.c
-	common/debug.c
+	common/xxhash.c
+	common/zstd_common.c
 	compress/fse_compress.c
 	compress/hist.c
 	compress/huf_compress.c

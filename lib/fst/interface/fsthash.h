@@ -65,7 +65,7 @@ public:
 	{
     if (!blockHash)
     {
-      return XXH64(blobSource, blobLength, seed);
+      return ZSTD_XXH64(blobSource, blobLength, seed);
     }
 
 		int nrOfThreads = GetFstThreads();
@@ -104,7 +104,7 @@ public:
 				for (int block = blockNr; block < nextblockNr; block++)
 				{
 					// Block hash
-					blockHashes[block] = XXH64(&blobSource[block * blockSize], blockSize, seed);
+					blockHashes[block] = ZSTD_XXH64(&blobSource[block * blockSize], blockSize, seed);
 				}
 			}
 
@@ -117,11 +117,11 @@ public:
 				for (int block = blockNr; block < nextblockNr; block++)
 				{
 					// Block hash
-					blockHashes[block] = XXH64(&blobSource[block * blockSize], blockSize, seed);
+					blockHashes[block] = ZSTD_XXH64(&blobSource[block * blockSize], blockSize, seed);
 				}
 
 				// Last block hash
-				blockHashes[nextblockNr] = XXH64(&blobSource[nextblockNr * blockSize], lastBlockSize, seed);
+				blockHashes[nextblockNr] = ZSTD_XXH64(&blobSource[nextblockNr * blockSize], lastBlockSize, seed);
 			}
 
 		}  // end parallel region and join all threads
@@ -131,7 +131,7 @@ public:
     // combine multiple hashes
     if (nrOfBlocks > 1)
     {
-      allBlockHash = XXH64(blockHashes, nrOfBlocks * 8, seed);
+      allBlockHash = ZSTD_XXH64(blockHashes, nrOfBlocks * 8, seed);
     }
 		delete[] blockHashes;
 
