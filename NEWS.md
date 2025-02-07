@@ -1,6 +1,20 @@
 
 # fstlib 0.1.8
 
+This release of fstlib brings updates of the LZ4 and ZSTD compression libraries and contains fixes for compiling with gcc15.
+
+## Library updates
+
+* LZ4 updated to version 1.10.0
+* ZSTD updated to version 1.5.6
+
+## Fixes
+
+* Code now compiles correctly with gcc15
+
+
+# fstlib 0.1.8
+
 This release of fstlib brings updates of the LZ4 compression library and contains fixes for compiling with gcc13.
 
 ## Library updates
